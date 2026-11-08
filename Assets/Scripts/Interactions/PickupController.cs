@@ -245,23 +245,26 @@ namespace PVZ.Interactions
         /// </summary>
         private void HandleInput()
         {
-            // [E] or Left Click to Interact
-            if (Input.GetKeyDown(KeyCode.E) || Input.GetMouseButtonDown(0))
+            bool isEPressed = Input.GetKeyDown(KeyCode.E);
+            bool isLMBPressed = Input.GetMouseButtonDown(0);
+
+            // 1. Terminal interaction (strictly [E] key)
+            if (isEPressed && _hoveredTerminal != null && !IsCarryingBox)
             {
-                // 1. Terminal interaction
-                if (_hoveredTerminal != null && !IsCarryingBox)
-                {
-                    _hoveredTerminal.OpenTerminal(_playerController);
-                    return;
-                }
+                _hoveredTerminal.OpenTerminal(_playerController);
+                return;
+            }
 
-                // 2. Wall Calendar interaction
-                if (_hoveredCalendar != null && !IsCarryingBox)
-                {
-                    _hoveredCalendar.OpenCalendar(_playerController);
-                    return;
-                }
+            // 2. Wall Calendar interaction (strictly [E] key, not left mouse click)
+            if (isEPressed && _hoveredCalendar != null && !_hoveredCalendar.IsOpen && !_hoveredCalendar.JustClosedThisFrame && !IsCarryingBox)
+            {
+                _hoveredCalendar.OpenCalendar(_playerController);
+                return;
+            }
 
+            // [E] or Left Click to Interact with counter, customers, and warehouse boxes
+            if (isEPressed || isLMBPressed)
+            {
                 // 3. Open/Close tablet on counter
                 if (_hoveredCounter != null && _isHoveringSign)
                 {

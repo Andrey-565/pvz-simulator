@@ -15,6 +15,8 @@ namespace PVZ.Calendar.UI
     {
         private bool _isOpen;
         private PlayerController _activePlayer;
+        private int _openedFrame = -1;
+        private int _closedFrame = -1;
 
         private readonly string[] _daysOfWeek = new string[] { "ПН", "ВТ", "СР", "ЧТ", "ПТ", "СБ", "ВС" };
 
@@ -23,9 +25,14 @@ namespace PVZ.Calendar.UI
         /// </summary>
         public bool IsOpen => _isOpen;
 
+        /// <summary>
+        /// True if the calendar window was closed during the current frame.
+        /// </summary>
+        public bool JustClosedThisFrame => Time.frameCount == _closedFrame;
+
         private void Update()
         {
-            if (_isOpen)
+            if (_isOpen && Time.frameCount > _openedFrame)
             {
                 if (Input.GetKeyDown(KeyCode.Escape) || Input.GetKeyDown(KeyCode.E))
                 {
@@ -46,6 +53,7 @@ namespace PVZ.Calendar.UI
 
             _activePlayer = player;
             _isOpen = true;
+            _openedFrame = Time.frameCount;
 
             if (_activePlayer != null)
             {
@@ -65,6 +73,7 @@ namespace PVZ.Calendar.UI
             }
 
             _isOpen = false;
+            _closedFrame = Time.frameCount;
 
             if (_activePlayer != null)
             {

@@ -18,6 +18,11 @@ namespace PVZ.Calendar
         /// </summary>
         public bool IsOpen => _calendarUI != null && _calendarUI.IsOpen;
 
+        /// <summary>
+        /// True if the calendar UI was just closed during the current frame.
+        /// </summary>
+        public bool JustClosedThisFrame => _calendarUI != null && _calendarUI.JustClosedThisFrame;
+
         private void Awake()
         {
             if (_calendarUI == null)
