@@ -11,11 +11,16 @@ namespace PVZ.Economy
         private static EconomyManager _instance;
 
         [Header("Starting Economy")]
-        [Tooltip("Initial cash funds available to the player.")]
-        [SerializeField] private int _startingBalance = 500;
+        [Tooltip("Initial cash funds available to the player in rubles.")]
+        [SerializeField] private int _startingBalance = 1000;
 
         [Header("Runtime Balance")]
         [SerializeField] private int _currentBalance;
+
+        /// <summary>
+        /// Currency symbol for Russian rubles.
+        /// </summary>
+        public const string CurrencySymbol = "₽";
 
         /// <summary>
         /// Global singleton accessor.
@@ -23,9 +28,17 @@ namespace PVZ.Economy
         public static EconomyManager Instance => _instance;
 
         /// <summary>
-        /// Gets the current cash balance.
+        /// Gets the current cash balance in rubles.
         /// </summary>
         public int CurrentBalance => _currentBalance;
+
+        /// <summary>
+        /// Formats an amount into rubles format (e.g. "1 500 ₽").
+        /// </summary>
+        public static string FormatMoney(int amount)
+        {
+            return $"{amount:N0} ₽";
+        }
 
         /// <summary>
         /// Fires when the account balance changes, passing the new amount.

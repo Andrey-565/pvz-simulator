@@ -281,7 +281,7 @@ namespace PVZ.Customers
                 speedLabel = "Критическое опоздание (-5 очков рейтинга)";
             }
 
-            paymentAwarded = 50 + (ratingDelta > 0 ? 15 : 0);
+            paymentAwarded = 150 + (ratingDelta > 0 ? 50 : 0);
 
             // Apply economy & rating updates
             if (EconomyManager.Instance != null)
@@ -301,7 +301,7 @@ namespace PVZ.Customers
 
             ShowSpeech(speech, isAngry: ratingDelta < 0, duration: 3.5f);
 
-            feedbackMessage = $"✔ Заказ #{_targetOrderId} успешно выдан! Оплата: +${paymentAwarded}. {speedLabel}";
+            feedbackMessage = $"✔ Заказ #{_targetOrderId} успешно выдан! Оплата: +{paymentAwarded} ₽. {speedLabel}";
 
             // Destroy the box item GameObject as it is handed over
             Destroy(box.gameObject);

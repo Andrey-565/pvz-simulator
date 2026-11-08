@@ -78,7 +78,7 @@ namespace PVZ.Computer.UI
 
             // Top Bar
             GUILayout.BeginHorizontal();
-            GUILayout.Label($"<b>Сотрудник:</b> Оператор ПВЗ | <b>Баланс кассы:</b> <color=green>${balance}</color>", GUILayout.Height(25));
+            GUILayout.Label($"<b>Сотрудник:</b> Оператор ПВЗ | <b>Баланс кассы:</b> <color=green>{balance:N0} ₽</color>", GUILayout.Height(25));
             GUILayout.FlexibleSpace();
             if (GUILayout.Button("✕ Закрыть [Esc]", GUILayout.Width(110), GUILayout.Height(25)))
             {
@@ -188,7 +188,7 @@ namespace PVZ.Computer.UI
             GUILayout.BeginHorizontal();
 
             GUILayout.BeginVertical();
-            GUILayout.Label($"<b>{title}</b> ({boxCount} шт.) — <color=#00FF00>Бесплатно ($0)</color>");
+            GUILayout.Label($"<b>{title}</b> ({boxCount} шт.) — <color=#00FF00>Бесплатно (0 ₽)</color>");
             GUILayout.Label($"<size=11>{description}</size>");
             GUILayout.EndVertical();
 
@@ -196,7 +196,7 @@ namespace PVZ.Computer.UI
 
             var dm = DeliveryManager.Instance;
             bool canOrder = dm != null && dm.CanOrderDelivery;
-            string btnText = "Заказать (0$)";
+            string btnText = "Заказать (0 ₽)";
 
             if (dm != null)
             {
