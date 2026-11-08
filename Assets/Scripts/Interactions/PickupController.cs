@@ -6,6 +6,7 @@ using PVZ.Player;
 using PVZ.Computer;
 using PVZ.Customers;
 using PVZ.Counter;
+using PVZ.Calendar;
 
 namespace PVZ.Interactions
 {
@@ -42,6 +43,7 @@ namespace PVZ.Interactions
         private ComputerTerminal _hoveredTerminal;
         private CustomerAI _hoveredCustomer;
         private CheckoutCounter _hoveredCounter;
+        private WallCalendar _hoveredCalendar;
         private bool _isHoveringSign;
         private bool _isHoveringScanner;
 
@@ -115,6 +117,7 @@ namespace PVZ.Interactions
             ComputerTerminal targetTerminal = null;
             CustomerAI targetCustomer = null;
             CheckoutCounter targetCounter = null;
+            WallCalendar targetCalendar = null;
             bool targetSign = false;
             bool targetScanner = false;
             string newPrompt = string.Empty;
@@ -126,10 +129,15 @@ namespace PVZ.Interactions
                 targetBox = hit.collider.GetComponentInParent<BoxItem>();
                 targetCustomer = hit.collider.GetComponentInParent<CustomerAI>();
                 targetCounter = hit.collider.GetComponentInParent<CheckoutCounter>();
+                targetCalendar = hit.collider.GetComponentInParent<WallCalendar>();
 
                 if (targetTerminal != null && !IsCarryingBox)
                 {
                     newPrompt = "[E] Сесть за рабочий компьютер";
+                }
+                else if (targetCalendar != null && !IsCarryingBox)
+                {
+                    newPrompt = "[E] Посмотреть настенный календарь";
                 }
                 else if (targetCustomer != null)
                 {
@@ -217,6 +225,7 @@ namespace PVZ.Interactions
             }
 
             _hoveredTerminal = targetTerminal;
+            _hoveredCalendar = targetCalendar;
             _hoveredCustomer = targetCustomer;
             _hoveredCounter = targetCounter;
             _isHoveringSign = targetSign;
@@ -246,7 +255,14 @@ namespace PVZ.Interactions
                     return;
                 }
 
-                // 2. Open/Close tablet on counter
+                // 2. Wall Calendar interaction
+                if (_hoveredCalendar != null && !IsCarryingBox)
+                {
+                    _hoveredCalendar.OpenCalendar(_playerController);
+                    return;
+                }
+
+                // 3. Open/Close tablet on counter
                 if (_hoveredCounter != null && _isHoveringSign)
                 {
                     _hoveredCounter.ToggleOpenClosed(out string fb);

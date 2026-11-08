@@ -3,6 +3,7 @@ using UnityEngine;
 using UnityEngine.AI;
 using PVZ.Items;
 using PVZ.Economy;
+using PVZ.Utils;
 
 namespace PVZ.Customers
 {
@@ -290,7 +291,7 @@ namespace PVZ.Customers
 
             if (RatingManager.Instance != null)
             {
-                RatingManager.Instance.ApplyRatingDelta(ratingDelta, $"Клиент #{_targetOrderId} обслужен за {_elapsedTimeAfterScan:F1}с");
+                RatingManager.Instance.ApplyRatingDelta(ratingDelta, $"Клиент #{_targetOrderId} обслужен за {TimeFormatter.FormatMinutesSeconds(_elapsedTimeAfterScan)}");
             }
 
             // Customer reaction speech
@@ -350,11 +351,11 @@ namespace PVZ.Customers
 
             if (_isScanned)
             {
-                // Scanned: show order ID and live timer
+                // Scanned: show order ID and live timer in minutes & seconds
                 tagStyle.normal.textColor = Color.yellow;
-                string timerText = $"{_elapsedTimeAfterScan:F1}с";
+                string timerText = TimeFormatter.FormatMinutesSeconds(_elapsedTimeAfterScan);
                 string tagText = $"Заказ #{_targetOrderId} ({timerText})";
-                GUI.Box(new Rect(screenPos.x - 75, y - 40, 150, 24), tagText, tagStyle);
+                GUI.Box(new Rect(screenPos.x - 90, y - 40, 180, 24), tagText, tagStyle);
 
                 // Speed rating indicator below tag
                 GUIStyle speedStyle = new GUIStyle

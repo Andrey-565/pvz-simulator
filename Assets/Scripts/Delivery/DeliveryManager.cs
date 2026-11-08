@@ -2,11 +2,14 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using PVZ.Computer.UI;
+using PVZ.Utils;
+using PVZ.Calendar;
 
 namespace PVZ.Delivery
 {
     /// <summary>
-    /// Coordinates parcel delivery operations: tracks 20s countdown after PC orders,
+    /// Coordinates parcel delivery operations: tracks arrival countdowns,
+    /// 100s cooldowns, daily delivery quotas (2 per shift),
     /// manages truck spawn outside the front entrance, and communicates delivery status to PC, HUD,
     /// and renders Steam achievement notifications.
     /// </summary>
@@ -22,6 +25,13 @@ namespace PVZ.Delivery
         [Tooltip("Delivery delay in seconds before truck arrives outside.")]
         [SerializeField] private float _deliveryDuration = 20.0f;
 
+        [Header("Shift & Cooldown Settings")]
+        [Tooltip("Maximum free deliveries permitted in a single work shift.")]
+        [SerializeField] private int _maxDeliveriesPerShift = 2;
+
+        [Tooltip("Cooldown delay in seconds required between deliveries (100 seconds).")]
+        [SerializeField] private float _deliveryCooldownDuration = 100.0f;
+
         [Header("State")]
         [SerializeField] private bool _isDeliveryPending;
         [SerializeField] private float _currentCountdown;
@@ -29,6 +39,10 @@ namespace PVZ.Delivery
         [SerializeField] private List<int> _pendingOrderBatch = new List<int>();
         private string _statusNotification = string.Empty;
         private float _notificationTimer = 0f;
+
+        [Header("Shift & Cooldown State")]
+        [SerializeField] private int _deliveriesOrderedToday = 0;
+        [SerializeField] private float _currentCooldown = 0f;
 
         [Header("Steam Achievement State")]
         private bool _showAchievement;
@@ -56,6 +70,42 @@ namespace PVZ.Delivery
         /// New orders are blocked while this is true.
         /// </summary>
         public bool IsDeliveryActive => _isDeliveryPending || (_truck != null && _truck.IsTruckBusy);
+
+        /// <summary>
+        /// Maximum deliveries permitted per shift.
+        /// </summary>
+        public int MaxDeliveriesPerShift => _maxDeliveriesPerShift;
+
+        /// <summary>
+        /// Total deliveries ordered during the current work shift.
+        /// </summary>
+        public int DeliveriesOrderedToday => _deliveriesOrderedToday;
+
+        /// <summary>
+        /// Remaining deliveries available in the current work shift.
+        /// </summary>
+        public int DeliveriesRemainingToday => Mathf.Max(0, _maxDeliveriesPerShift - _deliveriesOrderedToday);
+
+        /// <summary>
+        /// Standard cooldown duration between deliveries in seconds (100s).
+        /// </summary>
+        public float DeliveryCooldownDuration => _deliveryCooldownDuration;
+
+        /// <summary>
+        /// Remaining cooldown delay before another shipment can be ordered.
+        /// </summary>
+        public float RemainingCooldown => _currentCooldown;
+
+        /// <summary>
+        /// True if cooldown between deliveries is actively counting down.
+        /// </summary>
+        public bool IsCooldownActive => _currentCooldown > 0f;
+
+        /// <summary>
+        /// True if player is allowed to order a new delivery.
+        /// Requires: въезд свободен, КД прошёл, и лимит на смену (2) не исчерпан.
+        /// </summary>
+        public bool CanOrderDelivery => !IsDeliveryActive && !IsCooldownActive && _deliveriesOrderedToday < _maxDeliveriesPerShift;
 
         /// <summary>
         /// Remaining seconds until the delivery truck arrives.
@@ -90,6 +140,9 @@ namespace PVZ.Delivery
             {
                 _truck.gameObject.SetActive(false);
             }
+
+            // Ensure in-game CalendarManager and WallCalendar are ready
+            _ = CalendarManager.Instance;
         }
 
         private void OnEnable()
@@ -136,6 +189,16 @@ namespace PVZ.Delivery
                 }
             }
 
+            // Cooldown between deliveries (100 seconds)
+            if (_currentCooldown > 0f)
+            {
+                _currentCooldown -= Time.deltaTime;
+                if (_currentCooldown <= 0f)
+                {
+                    _currentCooldown = 0f;
+                }
+            }
+
             if (!_isDeliveryPending)
             {
                 return;
@@ -158,14 +221,18 @@ namespace PVZ.Delivery
 
         /// <summary>
         /// Called when the player orders a new shipment from the PC terminal.
+        /// Deliveries are free, limited to 2 per shift, with a 100-second cooldown between orders.
         /// </summary>
         private void HandleSupplyBatchOrdered(int boxCount)
         {
-            if (IsDeliveryActive)
+            if (!CanOrderDelivery)
             {
-                Debug.LogWarning("[DeliveryManager] Cannot order new supply: delivery is already active!");
+                Debug.LogWarning("[DeliveryManager] Cannot order supply: condition not met!");
                 return;
             }
+
+            _deliveriesOrderedToday++;
+            _currentCooldown = _deliveryCooldownDuration;
 
             _pendingOrderBatch.Clear();
             for (int i = 0; i < boxCount; i++)
@@ -175,7 +242,18 @@ namespace PVZ.Delivery
 
             _currentCountdown = _deliveryDuration;
             _isDeliveryPending = true;
-            ShowNotification($"🚛 Заказ оформлен! Фура с {boxCount} посылками прибудет к входу через 20 сек.", 5f);
+            ShowNotification(
+                $"🚛 Поставка оформлена! Фура с {boxCount} коробками прибудет через {TimeFormatter.FormatMinutesSeconds(_deliveryDuration)}. КД поставщика: {TimeFormatter.FormatMinutesSeconds(_deliveryCooldownDuration)}.",
+                6f);
+        }
+
+        /// <summary>
+        /// Resets daily delivery counter and clears active cooldown when shift changes via the calendar.
+        /// </summary>
+        public void ResetShift()
+        {
+            _deliveriesOrderedToday = 0;
+            _currentCooldown = 0f;
         }
 
         private void HandleTruckArrived()

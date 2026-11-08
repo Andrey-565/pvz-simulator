@@ -4,6 +4,7 @@ using UnityEngine;
 using PVZ.Economy;
 using PVZ.Warehouse;
 using PVZ.Delivery;
+using PVZ.Utils;
 
 namespace PVZ.Computer.UI
 {
@@ -136,8 +137,8 @@ namespace PVZ.Computer.UI
 
                 if (dm.IsDeliveryPending)
                 {
-                    int sec = Mathf.CeilToInt(dm.RemainingCountdown);
-                    GUILayout.Label($"<b>СТАТУС ПОСТАВКИ:</b> <color=cyan>🚛 В ПУТИ...</color> | Прибытие через: <b>{sec} сек.</b>", GUILayout.Height(22));
+                    string arrivalStr = TimeFormatter.FormatMinutesSeconds(dm.RemainingCountdown);
+                    GUILayout.Label($"<b>СТАТУС ПОСТАВКИ:</b> <color=cyan>🚛 В ПУТИ...</color> | Прибытие через: <b>{arrivalStr}</b>", GUILayout.Height(22));
                     GUILayout.Label($"<size=12>Фура с {dm.PendingBatchCount} коробками прибудет к входу на улице.</size>");
                 }
                 else if (dm.Truck != null && dm.Truck.IsArrived)
@@ -150,45 +151,73 @@ namespace PVZ.Computer.UI
                     GUILayout.Label($"<b>СТАТУС ПОСТАВКИ:</b> <color=yellow>🚛 ФУРА НА УЛИЦЕ</color> | Маневрирование / завершение разгрузки.", GUILayout.Height(22));
                     GUILayout.Label("<size=12>Ожидайте освобождения въезда перед оформлением новой поставки.</size>");
                 }
+                else if (dm.DeliveriesRemainingToday <= 0)
+                {
+                    GUILayout.Label($"<b>СТАТУС ПОСТАВКИ:</b> <color=red>⛔ ЛИМИТ НА СМЕНУ ИСЧЕРПАН ({dm.DeliveriesOrderedToday} из {dm.MaxDeliveriesPerShift})</color>", GUILayout.Height(22));
+                    GUILayout.Label("<size=12>Завершите рабочую смену на настенном календаре склада, чтобы начать новый рабочий день.</size>");
+                }
+                else if (dm.IsCooldownActive)
+                {
+                    string cdStr = TimeFormatter.FormatMinutesSeconds(dm.RemainingCooldown);
+                    GUILayout.Label($"<b>СТАТУС ПОСТАВКИ:</b> <color=yellow>⏳ КУЛДАУН ПОСТАВЩИКА</color> | До следующего заказа: <b>{cdStr}</b>", GUILayout.Height(22));
+                    GUILayout.Label("<size=12>Базовый интервал между поставками: 1 мин. 40 сек. Сбрасывается при завершении смены на календаре.</size>");
+                }
                 else
                 {
-                    GUILayout.Label($"<b>СТАТУС ПОСТАВКИ:</b> <color=white>✔ Свободно</color> (Готов к оформлению новой поставки)", GUILayout.Height(22));
+                    GUILayout.Label($"<b>СТАТУС ПОСТАВКИ:</b> <color=#00FF00>✔ Доступно к заказу</color> (Осталось на смену: <b>{dm.DeliveriesRemainingToday} из {dm.MaxDeliveriesPerShift}</b>)", GUILayout.Height(22));
+                    GUILayout.Label("<size=12>Поставки бесплатны! Кулдаун между заказами: 1 мин. 40 сек. (Лимит: 2 поставки за смену).</size>");
                 }
 
                 GUILayout.EndVertical();
                 GUILayout.Space(10);
             }
 
-            GUILayout.Label("<b>Каталог поставок интернет-магазинов:</b>");
+            GUILayout.Label("<b>Бесплатные поставки партий товаров (Лимит: 2 в рабочий день):</b>");
             GUILayout.Space(6);
 
-            DrawSupplyCard("Малая партия коробок", 3, 150, balance, "3 случайные посылки для быстрой выдачи");
+            DrawSupplyCard("Малая партия коробок", 3, "3 коробки — быстрая разгрузка на полки");
             GUILayout.Space(6);
-            DrawSupplyCard("Стандартная партия коробок", 6, 280, balance, "6 посылок — оптимально для утренней смены");
+            DrawSupplyCard("Стандартная партия коробок", 6, "6 коробок — оптимальный запас на смену");
             GUILayout.Space(6);
-            DrawSupplyCard("Оптовая партия коробок", 10, 420, balance, "10 посылок — оптовая скидка, высокая прибыль");
+            DrawSupplyCard("Оптовая партия коробок", 10, "10 коробок — максимальный объём за одну поставку");
         }
 
-        private void DrawSupplyCard(string title, int boxCount, int price, int balance, string description)
+        private void DrawSupplyCard(string title, int boxCount, string description)
         {
             GUILayout.BeginVertical("box");
             GUILayout.BeginHorizontal();
 
             GUILayout.BeginVertical();
-            GUILayout.Label($"<b>{title}</b> ({boxCount} шт.) — <color=yellow>${price}</color>");
+            GUILayout.Label($"<b>{title}</b> ({boxCount} шт.) — <color=#00FF00>Бесплатно ($0)</color>");
             GUILayout.Label($"<size=11>{description}</size>");
             GUILayout.EndVertical();
 
             GUILayout.FlexibleSpace();
 
-            bool isDeliveryBusy = DeliveryManager.Instance != null && DeliveryManager.Instance.IsDeliveryActive;
-            bool canAfford = balance >= price && !isDeliveryBusy;
+            var dm = DeliveryManager.Instance;
+            bool canOrder = dm != null && dm.CanOrderDelivery;
+            string btnText = "Заказать (0$)";
 
-            GUI.enabled = canAfford;
-            string btnText = isDeliveryBusy ? "Поставка активна" : (balance >= price ? "Заказать" : "Нет средств");
-            if (GUILayout.Button(btnText, GUILayout.Width(140), GUILayout.Height(36)))
+            if (dm != null)
             {
-                OrderBatch(boxCount, price);
+                if (dm.DeliveriesRemainingToday <= 0)
+                {
+                    btnText = "Лимит (2/2)";
+                }
+                else if (dm.IsDeliveryActive)
+                {
+                    btnText = "Поставка в пути";
+                }
+                else if (dm.IsCooldownActive)
+                {
+                    btnText = $"КД {TimeFormatter.FormatMinutesSeconds(dm.RemainingCooldown)}";
+                }
+            }
+
+            GUI.enabled = canOrder;
+            if (GUILayout.Button(btnText, GUILayout.Width(150), GUILayout.Height(36)))
+            {
+                OrderBatch(boxCount);
             }
             GUI.enabled = true;
 
@@ -196,21 +225,30 @@ namespace PVZ.Computer.UI
             GUILayout.EndVertical();
         }
 
-        private void OrderBatch(int boxCount, int price)
+        private void OrderBatch(int boxCount)
         {
-            if (DeliveryManager.Instance != null && DeliveryManager.Instance.IsDeliveryActive)
+            var dm = DeliveryManager.Instance;
+            if (dm == null || !dm.CanOrderDelivery)
             {
-                _statusMessage = "❌ Нельзя заказать новую поставку, пока активна текущая!";
+                if (dm != null && dm.DeliveriesRemainingToday <= 0)
+                {
+                    _statusMessage = "❌ Лимит поставок на смену исчерпан (2/2)! Завершите смену на календаре.";
+                }
+                else if (dm != null && dm.IsCooldownActive)
+                {
+                    _statusMessage = $"⏳ Дождитесь окончания кулдауна ({TimeFormatter.FormatMinutesSeconds(dm.RemainingCooldown)})!";
+                }
+                else
+                {
+                    _statusMessage = "❌ Нельзя заказать новую поставку прямо сейчас!";
+                }
                 _statusTimer = 4f;
                 return;
             }
 
-            if (EconomyManager.Instance != null && EconomyManager.Instance.TrySpend(price))
-            {
-                OnSupplyBatchOrdered?.Invoke(boxCount);
-                _statusMessage = $"✔ Партия из {boxCount} коробок оформлена за ${price}! Фура прибудет через 20 сек.";
-                _statusTimer = 6f;
-            }
+            OnSupplyBatchOrdered?.Invoke(boxCount);
+            _statusMessage = $"✔ Поставка из {boxCount} коробок оформлена бесплатно! Фура прибудет через {TimeFormatter.FormatMinutesSeconds(20f)}.";
+            _statusTimer = 6f;
         }
 
         private void DrawWarehouseTab()

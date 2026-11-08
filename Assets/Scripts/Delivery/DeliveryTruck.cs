@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using PVZ.Items;
 using PVZ.Player;
+using PVZ.Utils;
 
 namespace PVZ.Delivery
 {
@@ -162,7 +163,7 @@ namespace PVZ.Delivery
                 if (IsPlayerInsideCargo())
                 {
                     DeliveryManager.Instance?.ShowNotification(
-                        $"⚠ ВНИМАНИЕ: Фура скоро уедет! У вас есть {Mathf.CeilToInt(_departureCountdown)} сек, чтобы покинуть кузов!",
+                        $"⚠ ВНИМАНИЕ: Фура скоро уедет! У вас есть {TimeFormatter.FormatMinutesSeconds(_departureCountdown)}, чтобы покинуть кузов!",
                         0.25f);
                 }
 

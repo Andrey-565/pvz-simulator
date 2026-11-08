@@ -13,6 +13,8 @@ using PVZ.Computer.UI;
 using PVZ.Delivery;
 using PVZ.Customers;
 using PVZ.Counter;
+using PVZ.Calendar;
+using PVZ.Calendar.UI;
 
 namespace PVZ.Editor
 {
@@ -60,6 +62,10 @@ namespace PVZ.Editor
             GameObject qmObj = new GameObject("CustomerQueueManager");
             qmObj.transform.SetParent(managersObj.transform);
             qmObj.AddComponent<CustomerQueueManager>();
+
+            GameObject cmObj = new GameObject("CalendarManager");
+            cmObj.transform.SetParent(managersObj.transform);
+            cmObj.AddComponent<CalendarManager>();
 
             // 2. Lighting
             GameObject lightObj = new GameObject("Directional Light");
@@ -159,6 +165,9 @@ namespace PVZ.Editor
             // 8. Warehouse Shelves (in employee warehouse area)
             CreateShelfUnit("Shelf_A", "A", new Vector3(-6.2f, 0f, 4.0f), Quaternion.Euler(0f, 90f, 0f));
             CreateShelfUnit("Shelf_B", "B", new Vector3(-6.2f, 0f, 8.5f), Quaternion.Euler(0f, 90f, 0f));
+
+            // 8.1. Wall Calendar (mounted on warehouse wall)
+            CreateWallCalendar(new Vector3(-4.0f, 1.8f, 11.78f), Quaternion.Euler(0f, 180f, 0f));
 
             // 9. Delivery Truck (parked on the street outside the front entrance)
             DeliveryTruck truck = CreateDeliveryTruck(new Vector3(-2.2f, 0f, -11.0f), Quaternion.Euler(0f, 180f, 0f));
@@ -386,7 +395,7 @@ namespace PVZ.Editor
             shelfComp.ConfigureSlots(letter);
         }
 
-        private static void CreatePart(Transform parent, string name, Vector3 localPos, Vector3 localScale)
+        private static GameObject CreatePart(Transform parent, string name, Vector3 localPos, Vector3 localScale)
         {
             GameObject part = GameObject.CreatePrimitive(PrimitiveType.Cube);
             part.name = name;
@@ -394,6 +403,49 @@ namespace PVZ.Editor
             part.transform.localPosition = localPos;
             part.transform.localRotation = Quaternion.identity;
             part.transform.localScale = localScale;
+            return part;
+        }
+
+        private static void CreateWallCalendar(Vector3 position, Quaternion rotation)
+        {
+            GameObject calendarObj = new GameObject("WallCalendar");
+            calendarObj.transform.position = position;
+            calendarObj.transform.rotation = rotation;
+
+            // Cork/Wood backing board
+            GameObject board = CreatePart(calendarObj.transform, "Backboard", new Vector3(0f, 0f, 0.02f), new Vector3(0.85f, 1.05f, 0.03f));
+            Renderer boardRend = board.GetComponent<Renderer>();
+            if (boardRend != null && boardRend.sharedMaterial != null)
+            {
+                Material mat = new Material(boardRend.sharedMaterial) { color = new Color(0.35f, 0.22f, 0.12f) };
+                boardRend.sharedMaterial = mat;
+            }
+
+            // White Calendar Paper sheet
+            GameObject paper = CreatePart(calendarObj.transform, "PaperPage", new Vector3(0f, -0.04f, 0f), new Vector3(0.78f, 0.88f, 0.02f));
+            Renderer paperRend = paper.GetComponent<Renderer>();
+            if (paperRend != null && paperRend.sharedMaterial != null)
+            {
+                Material mat = new Material(paperRend.sharedMaterial) { color = new Color(0.96f, 0.96f, 0.94f) };
+                paperRend.sharedMaterial = mat;
+            }
+
+            // Red top binding header
+            GameObject topBinding = CreatePart(calendarObj.transform, "TopBinding", new Vector3(0f, 0.44f, -0.01f), new Vector3(0.80f, 0.12f, 0.03f));
+            Renderer bindRend = topBinding.GetComponent<Renderer>();
+            if (bindRend != null && bindRend.sharedMaterial != null)
+            {
+                Material mat = new Material(bindRend.sharedMaterial) { color = new Color(0.85f, 0.15f, 0.15f) };
+                bindRend.sharedMaterial = mat;
+            }
+
+            // Collider for interaction raycasting
+            BoxCollider col = calendarObj.AddComponent<BoxCollider>();
+            col.size = new Vector3(0.85f, 1.05f, 0.1f);
+            col.center = new Vector3(0f, 0f, 0f);
+
+            calendarObj.AddComponent<WallCalendar>();
+            calendarObj.AddComponent<CalendarUI>();
         }
 
         private static void CreateSlot(Transform parent, string slotId, Vector3 localPos)
