@@ -78,6 +78,16 @@ namespace PVZ.Delivery
         /// </summary>
         public bool IsDrivingWithPlayer => _isDrivingWithPlayer;
 
+        /// <summary>
+        /// True if truck is counting down to departure after being unloaded.
+        /// </summary>
+        public bool IsDeparturePending => _isDeparturePending;
+
+        /// <summary>
+        /// True if the truck is active, arriving, parked, unloading, or departing.
+        /// </summary>
+        public bool IsTruckBusy => gameObject.activeSelf || _isArrived || _cargoBoxes.Count > 0 || _isDeparturePending || _isDrivingWithPlayer;
+
         private void Awake()
         {
             if (!_hasCustomPark)

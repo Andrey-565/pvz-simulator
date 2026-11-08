@@ -52,6 +52,12 @@ namespace PVZ.Delivery
         public bool IsDeliveryPending => _isDeliveryPending;
 
         /// <summary>
+        /// True if a delivery is currently pending or the truck is actively delivering, parked, or departing.
+        /// New orders are blocked while this is true.
+        /// </summary>
+        public bool IsDeliveryActive => _isDeliveryPending || (_truck != null && _truck.IsTruckBusy);
+
+        /// <summary>
         /// Remaining seconds until the delivery truck arrives.
         /// </summary>
         public float RemainingCountdown => _currentCountdown;
@@ -155,6 +161,12 @@ namespace PVZ.Delivery
         /// </summary>
         private void HandleSupplyBatchOrdered(int boxCount)
         {
+            if (IsDeliveryActive)
+            {
+                Debug.LogWarning("[DeliveryManager] Cannot order new supply: delivery is already active!");
+                return;
+            }
+
             _pendingOrderBatch.Clear();
             for (int i = 0; i < boxCount; i++)
             {

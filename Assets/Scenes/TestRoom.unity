@@ -1238,7 +1238,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PVZ.Items.BoxItem
   _orderId: 103
-  _currentSlotId: 
+  _currentSlotId: B1
 --- !u!54 &423079728
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -2085,7 +2085,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PVZ.Warehouse.WarehouseSlot
   _slotId: B1
   _snapPoint: {fileID: 1440870499}
-  _currentBox: {fileID: 0}
+  _currentBox: {fileID: 423079727}
   _isHighlighted: 0
 --- !u!4 &600218096
 Transform:
@@ -3671,7 +3671,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PVZ.Warehouse.WarehouseSlot
   _slotId: A2
   _snapPoint: {fileID: 243424157}
-  _currentBox: {fileID: 0}
+  _currentBox: {fileID: 1424445358}
   _isHighlighted: 0
 --- !u!4 &1163332705
 Transform:
@@ -4431,7 +4431,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PVZ.Items.BoxItem
   _orderId: 102
-  _currentSlotId: 
+  _currentSlotId: A2
 --- !u!54 &1424445359
 Rigidbody:
   m_ObjectHideFlags: 0

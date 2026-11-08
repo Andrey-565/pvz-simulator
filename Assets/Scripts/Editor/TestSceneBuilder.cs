@@ -226,8 +226,19 @@ namespace PVZ.Editor
                 slotA1.TryPlaceBox(box101);
             }
 
-            CreateBox("Box_Order_102", 102, new Vector3(-6.2f, 0.85f, 4.0f));
-            CreateBox("Box_Order_103", 103, new Vector3(-6.2f, 0.85f, 8.5f));
+            BoxItem box102 = CreateBox("Box_Order_102", 102, Vector3.zero);
+            WarehouseSlot slotA2 = GameObject.Find("Slot_A2")?.GetComponent<WarehouseSlot>();
+            if (slotA2 != null)
+            {
+                slotA2.TryPlaceBox(box102);
+            }
+
+            BoxItem box103 = CreateBox("Box_Order_103", 103, Vector3.zero);
+            WarehouseSlot slotB1 = GameObject.Find("Slot_B1")?.GetComponent<WarehouseSlot>();
+            if (slotB1 != null)
+            {
+                slotB1.TryPlaceBox(box103);
+            }
 
             // Save Scene
             EditorSceneManager.SaveScene(newScene, ScenePath);

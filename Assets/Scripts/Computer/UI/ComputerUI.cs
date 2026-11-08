@@ -142,8 +142,13 @@ namespace PVZ.Computer.UI
                 }
                 else if (dm.Truck != null && dm.Truck.IsArrived)
                 {
-                    GUILayout.Label($"<b>СТАТУС ПОСТАВКИ:</b> <color=#00FF00>📦 ПРИБЫЛО!</color> Фура ожидает разгрузки у входа на улице.", GUILayout.Height(22));
+                    GUILayout.Label($"<b>СТАТУС ПОСТАВКИ:</b> <color=#00FF00>📦 НА РАЗГРУЗКЕ!</color> Фура ожидает разгрузки у входа на улице.", GUILayout.Height(22));
                     GUILayout.Label($"<size=12>Осталось коробок в кузове: <b>{dm.Truck.RemainingBoxCount} шт.</b> Выгрузите их на склад.</size>");
+                }
+                else if (dm.IsDeliveryActive)
+                {
+                    GUILayout.Label($"<b>СТАТУС ПОСТАВКИ:</b> <color=yellow>🚛 ФУРА НА УЛИЦЕ</color> | Маневрирование / завершение разгрузки.", GUILayout.Height(22));
+                    GUILayout.Label("<size=12>Ожидайте освобождения въезда перед оформлением новой поставки.</size>");
                 }
                 else
                 {
@@ -176,12 +181,12 @@ namespace PVZ.Computer.UI
 
             GUILayout.FlexibleSpace();
 
-            bool isDeliveryBusy = DeliveryManager.Instance != null && (DeliveryManager.Instance.IsDeliveryPending || (DeliveryManager.Instance.Truck != null && DeliveryManager.Instance.Truck.IsArrived));
+            bool isDeliveryBusy = DeliveryManager.Instance != null && DeliveryManager.Instance.IsDeliveryActive;
             bool canAfford = balance >= price && !isDeliveryBusy;
 
             GUI.enabled = canAfford;
-            string btnText = isDeliveryBusy ? "Поставка в пути" : (balance >= price ? "Заказать" : "Нет средств");
-            if (GUILayout.Button(btnText, GUILayout.Width(130), GUILayout.Height(36)))
+            string btnText = isDeliveryBusy ? "Поставка активна" : (balance >= price ? "Заказать" : "Нет средств");
+            if (GUILayout.Button(btnText, GUILayout.Width(140), GUILayout.Height(36)))
             {
                 OrderBatch(boxCount, price);
             }
@@ -193,6 +198,13 @@ namespace PVZ.Computer.UI
 
         private void OrderBatch(int boxCount, int price)
         {
+            if (DeliveryManager.Instance != null && DeliveryManager.Instance.IsDeliveryActive)
+            {
+                _statusMessage = "❌ Нельзя заказать новую поставку, пока активна текущая!";
+                _statusTimer = 4f;
+                return;
+            }
+
             if (EconomyManager.Instance != null && EconomyManager.Instance.TrySpend(price))
             {
                 OnSupplyBatchOrdered?.Invoke(boxCount);

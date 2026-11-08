@@ -27,10 +27,10 @@ namespace PVZ.Customers
         [SerializeField] private int _maxQueueSize = 3;
 
         [Tooltip("Minimum delay between customer arrivals in seconds.")]
-        [SerializeField] private float _minSpawnInterval = 12.0f;
+        [SerializeField] private float _minSpawnInterval = 5.0f;
 
         [Tooltip("Maximum delay between customer arrivals in seconds.")]
-        [SerializeField] private float _maxSpawnInterval = 22.0f;
+        [SerializeField] private float _maxSpawnInterval = 60.0f;
 
         [Header("Waypoints")]
         [Tooltip("Outdoor street sidewalk where customers spawn.")]
@@ -89,7 +89,7 @@ namespace PVZ.Customers
             }
 
             _instance = this;
-            _spawnCountdown = 2.0f;
+            _spawnCountdown = UnityEngine.Random.Range(_minSpawnInterval, _maxSpawnInterval);
         }
 
         private void OnDestroy()
@@ -125,7 +125,7 @@ namespace PVZ.Customers
                 }
             }
 
-            // Only spawn customers if line has room AND there is an unclaimed parcel in the store
+            // Only spawn customers if line has room AND there is an unclaimed parcel in warehouse slots
             if (_activeQueue.Count < _maxQueueSize)
             {
                 if (TryPickAvailableOrderId(out int nextOrderId))
@@ -140,13 +140,16 @@ namespace PVZ.Customers
                 }
                 else
                 {
-                    // No parcels remain to be claimed!
+                    // No parcels remain on warehouse shelves to be claimed!
                     if (_activeQueue.Count == 0 && !_outOfStockNotified)
                     {
                         _outOfStockNotified = true;
                         ShowBanner("📢 Все посылки со склада выданы! Оформите новую поставку на ПК.");
                     }
-                    _spawnCountdown = 2.0f; // Fast arrival once new boxes arrive
+                    if (_spawnCountdown <= 0f)
+                    {
+                        _spawnCountdown = UnityEngine.Random.Range(_minSpawnInterval, _maxSpawnInterval);
+                    }
                 }
             }
         }
@@ -177,7 +180,7 @@ namespace PVZ.Customers
 
             _isOpen = true;
             _outOfStockNotified = false;
-            _spawnCountdown = 2.0f; // Rapid first arrival
+            _spawnCountdown = UnityEngine.Random.Range(_minSpawnInterval, _maxSpawnInterval);
             feedback = "🔔 ПВЗ ОТКРЫТ! Ожидаем посетителей.";
             ShowBanner(feedback);
             OnStoreOpenStatusChanged?.Invoke(true);
@@ -245,36 +248,40 @@ namespace PVZ.Customers
         }
 
         /// <summary>
-        /// Selects an order ID from an unserved parcel present in the warehouse or facility.
-        /// Returns false if no parcels remain to be claimed.
+        /// Selects an order ID from an unserved parcel currently placed in a warehouse shelf slot.
+        /// Returns false if no warehouse shelf slot contains an unclaimed parcel.
+        /// Boxes still in the delivery truck or on the floor will NOT trigger customer arrivals until placed on shelves.
         /// </summary>
         public bool TryPickAvailableOrderId(out int targetOrderId)
         {
             targetOrderId = -1;
-            var claimedOrderIds = new HashSet<int>(_activeQueue.Select(c => c.TargetOrderId));
-
-            // 1. Prefer parcel already resting on a warehouse shelf
-            if (WarehouseManager.Instance != null)
+            if (WarehouseManager.Instance == null)
             {
-                var occupiedSlots = WarehouseManager.Instance.GetOccupiedSlots();
-                foreach (var slot in occupiedSlots)
+                return false;
+            }
+
+            var claimedOrderIds = new HashSet<int>();
+            for (int i = 0; i < _activeQueue.Count; i++)
+            {
+                if (_activeQueue[i] != null)
                 {
-                    if (slot.CurrentBox != null && !claimedOrderIds.Contains(slot.CurrentBox.OrderId))
-                    {
-                        targetOrderId = slot.CurrentBox.OrderId;
-                        return true;
-                    }
+                    claimedOrderIds.Add(_activeQueue[i].TargetOrderId);
                 }
             }
 
-            // 2. Otherwise pick from any unslotted physical box in scene
-            var allBoxes = FindObjectsByType<BoxItem>(FindObjectsSortMode.None);
-            foreach (var box in allBoxes)
+            // Strictly check occupied warehouse shelf slots:
+            var occupiedSlots = WarehouseManager.Instance.GetOccupiedSlots();
+            for (int i = 0; i < occupiedSlots.Count; i++)
             {
-                if (box != null && !claimedOrderIds.Contains(box.OrderId))
+                var slot = occupiedSlots[i];
+                if (slot != null && slot.CurrentBox != null)
                 {
-                    targetOrderId = box.OrderId;
-                    return true;
+                    int orderId = slot.CurrentBox.OrderId;
+                    if (!claimedOrderIds.Contains(orderId))
+                    {
+                        targetOrderId = orderId;
+                        return true;
+                    }
                 }
             }
 
