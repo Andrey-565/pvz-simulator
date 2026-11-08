@@ -61,6 +61,18 @@ namespace PVZ.Customers
         public static CustomerQueueManager Instance => _instance;
 
         /// <summary>
+        /// Calculates random spawn interval with a weighted distribution biased towards shorter times (5 - 25s),
+        /// significantly increasing the chance of frequent visitors while maintaining the 5 - 60s range.
+        /// </summary>
+        public float GetRandomSpawnInterval()
+        {
+            // Raising uniform random value to 1.8 power biases the distribution towards 0.
+            // Result: 50% of intervals are between 5 and 20s, 75% are under 32s, with occasional lulls up to 60s.
+            float t = Mathf.Pow(UnityEngine.Random.value, 1.8f);
+            return Mathf.Lerp(_minSpawnInterval, _maxSpawnInterval, t);
+        }
+
+        /// <summary>
         /// True if the store is open and accepting visitors.
         /// </summary>
         public bool IsOpen => _isOpen;
@@ -89,7 +101,7 @@ namespace PVZ.Customers
             }
 
             _instance = this;
-            _spawnCountdown = UnityEngine.Random.Range(_minSpawnInterval, _maxSpawnInterval);
+            _spawnCountdown = GetRandomSpawnInterval();
         }
 
         private void OnDestroy()
@@ -135,7 +147,7 @@ namespace PVZ.Customers
                     if (_spawnCountdown <= 0f)
                     {
                         SpawnCustomerWithOrder(nextOrderId);
-                        _spawnCountdown = UnityEngine.Random.Range(_minSpawnInterval, _maxSpawnInterval);
+                        _spawnCountdown = GetRandomSpawnInterval();
                     }
                 }
                 else
@@ -148,7 +160,7 @@ namespace PVZ.Customers
                     }
                     if (_spawnCountdown <= 0f)
                     {
-                        _spawnCountdown = UnityEngine.Random.Range(_minSpawnInterval, _maxSpawnInterval);
+                        _spawnCountdown = GetRandomSpawnInterval();
                     }
                 }
             }
@@ -180,7 +192,7 @@ namespace PVZ.Customers
 
             _isOpen = true;
             _outOfStockNotified = false;
-            _spawnCountdown = UnityEngine.Random.Range(_minSpawnInterval, _maxSpawnInterval);
+            _spawnCountdown = UnityEngine.Random.Range(3.0f, 6.0f); // Quick first visitor on opening
             feedback = "🔔 ПВЗ ОТКРЫТ! Ожидаем посетителей.";
             ShowBanner(feedback);
             OnStoreOpenStatusChanged?.Invoke(true);

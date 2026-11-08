@@ -122,7 +122,7 @@ namespace PVZ.Customers
         /// </summary>
         public void ScanOrder()
         {
-            if (_isScanned)
+            if (_isScanned || !IsAtCounter)
             {
                 return;
             }
@@ -149,11 +149,17 @@ namespace PVZ.Customers
                 case CustomerState.Spawning:
                 case CustomerState.MovingToQueue:
                     MoveTowardsTarget(_targetPosition);
-                    if (Vector3.Distance(transform.position, _targetPosition) < 0.35f)
+                    Vector3 flatCurrent = new Vector3(transform.position.x, 0f, transform.position.z);
+                    Vector3 flatTarget = new Vector3(_targetPosition.x, 0f, _targetPosition.z);
+                    if (Vector3.Distance(flatCurrent, flatTarget) < 0.45f)
                     {
                         _state = CustomerState.WaitingInQueue;
                         // Face north towards the counter table
                         transform.rotation = Quaternion.Euler(0f, 0f, 0f);
+                        if (_navAgent != null && _navAgent.isOnNavMesh && _navAgent.isActiveAndEnabled)
+                        {
+                            _navAgent.ResetPath();
+                        }
                     }
                     break;
 
@@ -218,6 +224,12 @@ namespace PVZ.Customers
             if (box == null)
             {
                 feedbackMessage = "Вы не держите посылку в руках!";
+                return false;
+            }
+
+            if (!IsAtCounter)
+            {
+                feedbackMessage = "Клиент еще подходит к стойке!";
                 return false;
             }
 
@@ -382,7 +394,15 @@ namespace PVZ.Customers
             {
                 // Unscanned: hide order ID!
                 tagStyle.normal.textColor = new Color(0.8f, 0.8f, 0.8f);
-                string tagText = (_queueIndex == 0) ? "Посетитель [Не отсканирован]" : $"Очередь #{_queueIndex + 1}";
+                string tagText;
+                if (_queueIndex == 0)
+                {
+                    tagText = IsAtCounter ? "Посетитель [Не отсканирован]" : "Посетитель (подходит...)";
+                }
+                else
+                {
+                    tagText = $"Очередь #{_queueIndex + 1}";
+                }
                 GUI.Box(new Rect(screenPos.x - 90, y - 36, 180, 24), tagText, tagStyle);
             }
 

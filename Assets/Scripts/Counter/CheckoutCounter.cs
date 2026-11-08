@@ -100,6 +100,12 @@ namespace PVZ.Counter
 
             CustomerAI customer = CustomerQueueManager.Instance.FirstInQueue;
 
+            if (!customer.IsAtCounter)
+            {
+                SetScannerFeedback("⚠ Сканер: Клиент еще подходит к стойке! Подождите, пока он встанет на место.");
+                return;
+            }
+
             // Trigger scan on the customer to unveil order number and start speed timer
             customer.ScanOrder();
 

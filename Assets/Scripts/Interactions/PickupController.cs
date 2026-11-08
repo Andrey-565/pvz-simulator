@@ -133,7 +133,11 @@ namespace PVZ.Interactions
                 }
                 else if (targetCustomer != null)
                 {
-                    if (!targetCustomer.IsScanned)
+                    if (!targetCustomer.IsAtCounter)
+                    {
+                        newPrompt = "Клиент подходит к стойке...";
+                    }
+                    else if (!targetCustomer.IsScanned)
                     {
                         if (IsCarryingBox)
                         {
@@ -259,6 +263,11 @@ namespace PVZ.Interactions
                 // 4. Scanning customer directly if player aims at customer with empty hands
                 if (_hoveredCustomer != null && !_hoveredCustomer.IsScanned && !IsCarryingBox)
                 {
+                    if (!_hoveredCustomer.IsAtCounter)
+                    {
+                        return;
+                    }
+
                     CheckoutCounter counter = FindFirstObjectByType<CheckoutCounter>();
                     if (counter != null)
                     {
@@ -280,7 +289,7 @@ namespace PVZ.Interactions
                         targetCust = CustomerQueueManager.Instance.FirstInQueue;
                     }
 
-                    if (targetCust != null)
+                    if (targetCust != null && targetCust.IsAtCounter)
                     {
                         BoxItem boxToDeliver = _currentBox;
                         if (targetCust.TryReceiveOrder(boxToDeliver, out int ratingDelta, out int payment, out string msg))
