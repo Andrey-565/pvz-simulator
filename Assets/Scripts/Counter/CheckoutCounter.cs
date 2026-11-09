@@ -79,8 +79,15 @@ namespace PVZ.Counter
             scannerGo.transform.position = spawnPos;
             scannerGo.transform.rotation = Quaternion.Euler(0f, 180f, 0f);
 
+            var rb = scannerGo.AddComponent<Rigidbody>();
+            rb.mass = 0.5f;
+            rb.collisionDetectionMode = CollisionDetectionMode.Continuous;
+            var box = scannerGo.AddComponent<BoxCollider>();
+            box.center = new Vector3(0f, 0.02f, 0.02f);
+            box.size = new Vector3(0.12f, 0.24f, 0.24f);
+
             _scannerItem = scannerGo.AddComponent<BarcodeScannerItem>();
-            if (_barcodeScanner != null)
+            if (_scannerItem != null && _barcodeScanner != null)
             {
                 _scannerItem.CradleTransform = _barcodeScanner;
             }

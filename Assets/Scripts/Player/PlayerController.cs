@@ -70,10 +70,7 @@ namespace PVZ.Player
             Instance = this;
             _characterController = GetComponent<CharacterController>();
 
-            if (_cameraTransform == null && Camera.main != null)
-            {
-                _cameraTransform = Camera.main.transform;
-            }
+            EnsureCamera();
 
             if (_characterController != null)
             {
@@ -91,6 +88,68 @@ namespace PVZ.Player
                 _standingCameraY = _cameraTransform.localPosition.y;
                 float heightDiff = _standingHeight - _crouchHeight;
                 _crouchCameraY = _standingCameraY - (heightDiff * 0.85f);
+            }
+        }
+
+        private void EnsureCamera()
+        {
+            if (_cameraTransform == null)
+            {
+                if (Camera.main != null)
+                {
+                    _cameraTransform = Camera.main.transform;
+                }
+                else
+                {
+                    Camera anyCam = FindAnyObjectByType<Camera>();
+                    if (anyCam != null)
+                    {
+                        anyCam.tag = "MainCamera";
+                        _cameraTransform = anyCam.transform;
+                    }
+                }
+            }
+
+            if (_cameraTransform == null)
+            {
+                GameObject camObj = new GameObject("Main Camera");
+                camObj.tag = "MainCamera";
+                camObj.transform.SetParent(transform);
+                camObj.transform.localPosition = new Vector3(0f, 0.6f, 0f);
+                camObj.transform.localRotation = Quaternion.identity;
+
+                Camera cam = camObj.AddComponent<Camera>();
+                cam.nearClipPlane = 0.1f;
+                cam.farClipPlane = 1000f;
+                cam.fieldOfView = 60f;
+                cam.targetDisplay = 0;
+                camObj.AddComponent<AudioListener>();
+
+                _cameraTransform = camObj.transform;
+            }
+            else
+            {
+                Camera cam = _cameraTransform.GetComponent<Camera>();
+                if (cam == null)
+                {
+                    cam = _cameraTransform.gameObject.AddComponent<Camera>();
+                    cam.nearClipPlane = 0.1f;
+                    cam.farClipPlane = 1000f;
+                    cam.fieldOfView = 60f;
+                    cam.targetDisplay = 0;
+                }
+                if (!cam.enabled)
+                {
+                    cam.enabled = true;
+                }
+                if (!_cameraTransform.gameObject.CompareTag("MainCamera"))
+                {
+                    _cameraTransform.gameObject.tag = "MainCamera";
+                }
+                if (_cameraTransform.GetComponent<AudioListener>() == null && FindAnyObjectByType<AudioListener>() == null)
+                {
+                    _cameraTransform.gameObject.AddComponent<AudioListener>();
+                }
             }
         }
 

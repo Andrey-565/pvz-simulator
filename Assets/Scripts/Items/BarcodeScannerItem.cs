@@ -12,7 +12,7 @@ namespace PVZ.Items
     /// and incoming delivery boxes, and placed back onto the counter stand or surfaces.
     /// </summary>
     [RequireComponent(typeof(Rigidbody))]
-    [RequireComponent(typeof(Collider))]
+    [RequireComponent(typeof(BoxCollider))]
     public class BarcodeScannerItem : MonoBehaviour
     {
         [Header("Scanner Properties")]
@@ -61,6 +61,10 @@ namespace PVZ.Items
             if (_collider == null)
             {
                 _collider = GetComponent<Collider>();
+                if (_collider == null)
+                {
+                    _collider = gameObject.AddComponent<BoxCollider>();
+                }
             }
 
             if (_audioSource == null)
@@ -173,11 +177,13 @@ namespace PVZ.Items
 
             // Adjust main collider
             BoxCollider boxCol = GetComponent<BoxCollider>();
-            if (boxCol != null)
+            if (boxCol == null)
             {
-                boxCol.center = new Vector3(0f, 0.02f, 0.02f);
-                boxCol.size = new Vector3(0.12f, 0.24f, 0.24f);
+                boxCol = gameObject.AddComponent<BoxCollider>();
             }
+            boxCol.center = new Vector3(0f, 0.02f, 0.02f);
+            boxCol.size = new Vector3(0.12f, 0.24f, 0.24f);
+            _collider = boxCol;
         }
 
         private static void SetColor(GameObject go, Color color)

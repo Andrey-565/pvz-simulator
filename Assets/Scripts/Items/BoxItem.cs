@@ -7,7 +7,7 @@ namespace PVZ.Items
     /// Can be picked up, carried, placed onto warehouse slots, or thrown.
     /// </summary>
     [RequireComponent(typeof(Rigidbody))]
-    [RequireComponent(typeof(Collider))]
+    [RequireComponent(typeof(BoxCollider))]
     public class BoxItem : MonoBehaviour
     {
         [Header("Item Properties")]
@@ -62,6 +62,10 @@ namespace PVZ.Items
             if (_collider == null)
             {
                 _collider = GetComponent<Collider>();
+                if (_collider == null)
+                {
+                    _collider = gameObject.AddComponent<BoxCollider>();
+                }
             }
         }
 

@@ -147,14 +147,27 @@ namespace PVZ.Editor
             GameObject scannerGo = new GameObject("Handheld_Barcode_Scanner");
             scannerGo.transform.position = counter.transform.position + new Vector3(0.8f, 1.05f, 0f);
             scannerGo.transform.rotation = Quaternion.Euler(0f, 180f, 0f);
+            var scRb = scannerGo.AddComponent<Rigidbody>();
+            scRb.mass = 0.5f;
+            scRb.collisionDetectionMode = CollisionDetectionMode.Continuous;
+            var scCol = scannerGo.AddComponent<BoxCollider>();
+            scCol.center = new Vector3(0f, 0.02f, 0.02f);
+            scCol.size = new Vector3(0.12f, 0.24f, 0.24f);
+
             BarcodeScannerItem scannerItem = scannerGo.AddComponent<BarcodeScannerItem>();
-            scannerItem.CradleTransform = scannerStand.transform;
+            if (scannerItem != null)
+            {
+                scannerItem.CradleTransform = scannerStand.transform;
+            }
 
             // Wire fields of CheckoutCounter
             SerializedObject sCounter = new SerializedObject(checkoutCounter);
             sCounter.FindProperty("_statusSignTablet").objectReferenceValue = signTablet.transform;
             sCounter.FindProperty("_barcodeScanner").objectReferenceValue = scannerStand.transform;
-            sCounter.FindProperty("_scannerItem").objectReferenceValue = scannerItem;
+            if (scannerItem != null)
+            {
+                sCounter.FindProperty("_scannerItem").objectReferenceValue = scannerItem;
+            }
             sCounter.FindProperty("_statusSignRenderer").objectReferenceValue = signRend;
             sCounter.ApplyModifiedProperties();
 

@@ -102,6 +102,34 @@ namespace PVZ.Customers
 
             _instance = this;
             _spawnCountdown = GetRandomSpawnInterval();
+
+            EnsureSceneCameraFallback();
+        }
+
+        private void EnsureSceneCameraFallback()
+        {
+            if (Camera.main == null && FindAnyObjectByType<Camera>() == null)
+            {
+                GameObject player = GameObject.Find("Player");
+                if (player == null)
+                {
+                    player = GameObject.CreatePrimitive(PrimitiveType.Capsule);
+                    player.name = "Player";
+                    player.transform.position = new Vector3(0f, 1.0f, 1.8f);
+                    player.transform.rotation = Quaternion.Euler(0f, 180f, 0f);
+
+                    var col = player.GetComponent<CapsuleCollider>();
+                    if (col != null)
+                    {
+                        Destroy(col);
+                    }
+
+                    var cc = player.AddComponent<CharacterController>();
+                    cc.height = 1.9f;
+                    player.AddComponent<Player.PlayerController>();
+                    player.AddComponent<Interactions.PickupController>();
+                }
+            }
         }
 
         private void OnDestroy()
