@@ -245,9 +245,12 @@ namespace PVZ.Items
 
             if (_rigidbody != null)
             {
+                if (!_rigidbody.isKinematic)
+                {
+                    _rigidbody.linearVelocity = Vector3.zero;
+                    _rigidbody.angularVelocity = Vector3.zero;
+                }
                 _rigidbody.isKinematic = true;
-                _rigidbody.linearVelocity = Vector3.zero;
-                _rigidbody.angularVelocity = Vector3.zero;
             }
             if (_collider != null)
             {

@@ -107,81 +107,36 @@ namespace PVZ.Editor
             CreateWall("Wall_West", new Vector3(-7.5f, 2f, 3.5f), new Vector3(0.4f, 4f, 17.4f));
             CreateWall("Wall_East", new Vector3(7.5f, 2f, 3.5f), new Vector3(0.4f, 4f, 17.4f));
 
-            // 6. Checkout Counter Desk (at Z = 0.5f, with open passage on the right)
-            GameObject counter = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            counter.name = "CounterTable";
-            counter.transform.position = new Vector3(-1.8f, 0.45f, 0.5f);
-            counter.transform.localScale = new Vector3(4.2f, 0.9f, 0.8f);
+            // 5.1. Decorative OZON Pickup Point Branding (as shown in reference photo)
+            GameObject brandWallObj = new GameObject("OZON_Decorations");
+            // Dark charcoal accent wall panel behind counter
+            CreatePart(brandWallObj.transform, "Accent_Wall_Charcoal", new Vector3(-0.8f, 2.0f, 11.76f), new Vector3(5.5f, 3.8f, 0.05f), new Color(0.18f, 0.20f, 0.22f));
+            // 3D White OZON letters
+            CreatePart(brandWallObj.transform, "Letter_O1", new Vector3(-1.7f, 2.5f, 11.70f), new Vector3(0.55f, 0.55f, 0.08f), Color.white);
+            CreatePart(brandWallObj.transform, "Letter_Z", new Vector3(-1.1f, 2.5f, 11.70f), new Vector3(0.55f, 0.55f, 0.08f), Color.white);
+            CreatePart(brandWallObj.transform, "Letter_O2", new Vector3(-0.5f, 2.5f, 11.70f), new Vector3(0.55f, 0.55f, 0.08f), Color.white);
+            CreatePart(brandWallObj.transform, "Letter_N", new Vector3(0.1f, 2.5f, 11.70f), new Vector3(0.55f, 0.55f, 0.08f), Color.white);
 
-            var checkoutCounter = counter.AddComponent<CheckoutCounter>();
+            // Blue wall poster banner on left (as seen in photo)
+            CreatePart(brandWallObj.transform, "Blue_Wall_Banner", new Vector3(-4.8f, 2.0f, 11.76f), new Vector3(2.2f, 3.8f, 0.04f), new Color(0.00f, 0.36f, 0.85f));
+            // Smartphone poster art on banner
+            CreatePart(brandWallObj.transform, "Banner_Phone_Art", new Vector3(-4.8f, 1.8f, 11.72f), new Vector3(1.1f, 2.1f, 0.04f), new Color(0.08f, 0.08f, 0.10f));
+            CreatePart(brandWallObj.transform, "Banner_Phone_Screen", new Vector3(-4.8f, 1.8f, 11.70f), new Vector3(0.95f, 1.9f, 0.02f), new Color(0.85f, 0.12f, 0.25f));
 
-            // Open/Closed Sign Tablet (tilted towards employee side Z > 0.5)
-            GameObject signTablet = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            signTablet.name = "Sign_OpenClosed";
-            signTablet.transform.SetParent(counter.transform);
-            signTablet.transform.localPosition = new Vector3(-1.1f, 0.55f, 0f);
-            signTablet.transform.localRotation = Quaternion.Euler(20f, 180f, 0f);
-            signTablet.transform.localScale = new Vector3(0.5f, 0.15f, 0.35f);
+            // Blue curtain archway (fitting room / backroom curtain as seen in photo)
+            CreatePart(brandWallObj.transform, "Blue_Fitting_Curtain", new Vector3(2.5f, 1.8f, 11.76f), new Vector3(1.8f, 3.4f, 0.06f), new Color(0.00f, 0.25f, 0.70f));
 
-            Renderer signRend = signTablet.GetComponent<Renderer>();
-            if (signRend != null && signRend.sharedMaterial != null)
-            {
-                Material mat = new Material(signRend.sharedMaterial) { color = new Color(0.85f, 0.15f, 0.15f) };
-                signRend.sharedMaterial = mat;
-            }
+            // 6. Unified Service Counter (OZON-style Reception Desk with PC Terminal, Barcode Scanner, and Parcel Handover Table)
+            CreateOzonServiceCounter(new Vector3(-0.8f, 0f, 0.5f), Quaternion.identity);
 
-            // Scanner Stand / Cradle
-            GameObject scannerStand = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-            scannerStand.name = "Scanner_Stand";
-            scannerStand.transform.SetParent(counter.transform);
-            scannerStand.transform.localPosition = new Vector3(0.8f, 0.52f, 0f);
-            scannerStand.transform.localScale = new Vector3(0.18f, 0.04f, 0.18f);
-
-            Renderer standRend = scannerStand.GetComponent<Renderer>();
-            if (standRend != null && standRend.sharedMaterial != null)
-            {
-                standRend.sharedMaterial = new Material(standRend.sharedMaterial) { color = new Color(0.15f, 0.15f, 0.18f) };
-            }
-
-            // Handheld Barcode Scanner Item
-            GameObject scannerGo = new GameObject("Handheld_Barcode_Scanner");
-            scannerGo.transform.position = counter.transform.position + new Vector3(0.8f, 1.05f, 0f);
-            scannerGo.transform.rotation = Quaternion.Euler(0f, 180f, 0f);
-            var scRb = scannerGo.AddComponent<Rigidbody>();
-            scRb.mass = 0.5f;
-            scRb.collisionDetectionMode = CollisionDetectionMode.Continuous;
-            var scCol = scannerGo.AddComponent<BoxCollider>();
-            scCol.center = new Vector3(0f, 0.02f, 0.02f);
-            scCol.size = new Vector3(0.12f, 0.24f, 0.24f);
-
-            BarcodeScannerItem scannerItem = scannerGo.AddComponent<BarcodeScannerItem>();
-            if (scannerItem != null)
-            {
-                scannerItem.CradleTransform = scannerStand.transform;
-            }
-
-            // Wire fields of CheckoutCounter
-            SerializedObject sCounter = new SerializedObject(checkoutCounter);
-            sCounter.FindProperty("_statusSignTablet").objectReferenceValue = signTablet.transform;
-            sCounter.FindProperty("_barcodeScanner").objectReferenceValue = scannerStand.transform;
-            if (scannerItem != null)
-            {
-                sCounter.FindProperty("_scannerItem").objectReferenceValue = scannerItem;
-            }
-            sCounter.FindProperty("_statusSignRenderer").objectReferenceValue = signRend;
-            sCounter.ApplyModifiedProperties();
-
-            // 7. Computer Desk (behind counter in employee area)
-            CreateComputerWorkstation(new Vector3(2.5f, 0f, 2.5f), Quaternion.Euler(0f, 180f, 0f));
-
-            // 8. Warehouse Shelves (in employee warehouse area)
+            // 7. Warehouse Shelves (in employee warehouse area)
             CreateShelfUnit("Shelf_A", "A", new Vector3(-6.2f, 0f, 4.0f), Quaternion.Euler(0f, 90f, 0f));
             CreateShelfUnit("Shelf_B", "B", new Vector3(-6.2f, 0f, 8.5f), Quaternion.Euler(0f, 90f, 0f));
 
-            // 8.1. Wall Calendar (mounted on warehouse wall)
-            CreateWallCalendar(new Vector3(-4.0f, 1.8f, 11.78f), Quaternion.Euler(0f, 180f, 0f));
+            // 7.1. Wall Calendar (mounted on warehouse wall)
+            CreateWallCalendar(new Vector3(-2.8f, 1.8f, 11.76f), Quaternion.Euler(0f, 180f, 0f));
 
-            // 9. Delivery Truck (parked on the street outside the front entrance)
+            // 8. Delivery Truck (parked on the street outside the front entrance)
             DeliveryTruck truck = CreateDeliveryTruck(new Vector3(-2.2f, 0f, -11.0f), Quaternion.Euler(0f, 180f, 0f));
             truck.SetParkTransform(new Vector3(-2.2f, 0f, -11.0f), Quaternion.Euler(0f, 180f, 0f));
 
@@ -193,10 +148,10 @@ namespace PVZ.Editor
             sDM.FindProperty("_truck").objectReferenceValue = truck;
             sDM.ApplyModifiedProperties();
 
-            // 10. Player Character (spawns behind the counter in employee area)
+            // 9. Player Character (spawns behind the counter in employee area)
             GameObject player = GameObject.CreatePrimitive(PrimitiveType.Capsule);
             player.name = "Player";
-            player.transform.position = new Vector3(0f, 1.0f, 1.8f);
+            player.transform.position = new Vector3(-0.8f, 1.0f, 1.5f);
             player.transform.rotation = Quaternion.Euler(0f, 180f, 0f); // Facing South towards counter & front entrance
 
             var defaultCapsule = player.GetComponent<CapsuleCollider>();
@@ -340,29 +295,119 @@ namespace PVZ.Editor
             return truck;
         }
 
-        private static void CreateComputerWorkstation(Vector3 position, Quaternion rotation)
+        private static void CreateOzonServiceCounter(Vector3 position, Quaternion rotation)
         {
-            GameObject deskObj = new GameObject("ComputerWorkstation");
-            deskObj.transform.position = position;
-            deskObj.transform.rotation = rotation;
+            GameObject counter = new GameObject("CounterTable");
+            counter.transform.position = position;
+            counter.transform.rotation = rotation;
 
-            CreatePart(deskObj.transform, "Desk_Top", new Vector3(0f, 0.72f, 0f), new Vector3(1.6f, 0.05f, 0.9f));
-            CreatePart(deskObj.transform, "Desk_Leg_L", new Vector3(-0.7f, 0.35f, 0f), new Vector3(0.08f, 0.7f, 0.7f));
-            CreatePart(deskObj.transform, "Desk_Leg_R", new Vector3(0.7f, 0.35f, 0f), new Vector3(0.08f, 0.7f, 0.7f));
+            var checkoutCounter = counter.AddComponent<CheckoutCounter>();
 
+            // Distinctive OZON palette
+            Color whiteLaminate = new Color(0.96f, 0.96f, 0.97f);
+            Color deskWorktopColor = new Color(0.90f, 0.91f, 0.93f);
+            Color darkCharcoal = new Color(0.14f, 0.15f, 0.17f);
+            Color ozonBlue = new Color(0.00f, 0.36f, 0.85f);
+            Color ozonMagenta = new Color(0.97f, 0.07f, 0.33f);
+
+            // --- 1. HIGH RECEPTION SECTION (Стойка администратора с высоким защитным фасадом) ---
+            // Front high screen (shields PC screen from customer view)
+            CreatePart(counter.transform, "Front_High_Screen", new Vector3(0f, 0.58f, -0.38f), new Vector3(1.80f, 1.16f, 0.05f), whiteLaminate);
+            // Right and Left side panels
+            CreatePart(counter.transform, "Side_Panel_Right", new Vector3(0.90f, 0.58f, 0f), new Vector3(0.05f, 1.16f, 0.80f), whiteLaminate);
+            CreatePart(counter.transform, "Divider_Panel_Left", new Vector3(-0.90f, 0.58f, 0f), new Vector3(0.05f, 1.16f, 0.80f), whiteLaminate);
+            // Top reception counter ledge
+            CreatePart(counter.transform, "Top_Counter_Ledge", new Vector3(0f, 1.16f, -0.28f), new Vector3(1.85f, 0.04f, 0.28f), whiteLaminate);
+            // Employee working desk surface (height 0.74m behind the high facade)
+            CreatePart(counter.transform, "Desktop_Work_Surface", new Vector3(0f, 0.74f, 0.08f), new Vector3(1.75f, 0.04f, 0.64f), deskWorktopColor);
+            // Base kickplate
+            CreatePart(counter.transform, "Base_Kickplate", new Vector3(0f, 0.06f, 0.38f), new Vector3(1.75f, 0.12f, 0.04f), darkCharcoal);
+
+            // --- 2. LOW SIDE PARCEL TABLE (Стол выдачи заказов слева, как на фото) ---
+            CreatePart(counter.transform, "Parcel_Table_Top", new Vector3(-1.80f, 0.76f, 0f), new Vector3(1.80f, 0.05f, 0.80f), whiteLaminate);
+            CreatePart(counter.transform, "Parcel_Table_Front_Apron", new Vector3(-1.80f, 0.50f, -0.37f), new Vector3(1.75f, 0.45f, 0.04f), whiteLaminate);
+            CreatePart(counter.transform, "Parcel_Table_Left_Leg", new Vector3(-2.68f, 0.38f, 0f), new Vector3(0.04f, 0.76f, 0.78f), whiteLaminate);
+            CreatePart(counter.transform, "Parcel_Table_Back_Support", new Vector3(-1.80f, 0.38f, 0.37f), new Vector3(1.75f, 0.76f, 0.04f), whiteLaminate);
+
+            // --- 3. COMPUTER WORKSTATION (Directly on this counter desk!) ---
+            // PC Monitor Terminal (faces North towards the employee standing behind the counter)
             GameObject monitorObj = GameObject.CreatePrimitive(PrimitiveType.Cube);
             monitorObj.name = "PC_Monitor_Terminal";
-            monitorObj.transform.SetParent(deskObj.transform);
-            monitorObj.transform.localPosition = new Vector3(0f, 1.05f, 0.15f);
+            monitorObj.transform.SetParent(counter.transform);
+            monitorObj.transform.localPosition = new Vector3(-0.25f, 1.05f, 0.05f);
             monitorObj.transform.localRotation = Quaternion.identity;
-            monitorObj.transform.localScale = new Vector3(0.8f, 0.5f, 0.08f);
+            monitorObj.transform.localScale = new Vector3(0.75f, 0.48f, 0.06f);
+            SetMaterialColor(monitorObj, darkCharcoal);
 
             var terminal = monitorObj.AddComponent<ComputerTerminal>();
             monitorObj.AddComponent<ComputerUI>();
 
-            CreatePart(deskObj.transform, "Monitor_Stand", new Vector3(0f, 0.77f, 0.15f), new Vector3(0.2f, 0.06f, 0.2f));
-            CreatePart(deskObj.transform, "Keyboard", new Vector3(0f, 0.76f, -0.15f), new Vector3(0.45f, 0.02f, 0.16f));
-            CreatePart(deskObj.transform, "PC_Tower", new Vector3(0.6f, 0.95f, 0.1f), new Vector3(0.2f, 0.42f, 0.45f));
+            // Monitor stand
+            CreatePart(counter.transform, "Monitor_Stand_Base", new Vector3(-0.25f, 0.77f, 0.05f), new Vector3(0.20f, 0.04f, 0.18f), darkCharcoal);
+            CreatePart(counter.transform, "Monitor_Stand_Stem", new Vector3(-0.25f, 0.88f, 0.03f), new Vector3(0.06f, 0.22f, 0.04f), darkCharcoal);
+
+            // Keyboard & Mouse
+            CreatePart(counter.transform, "Keyboard", new Vector3(-0.25f, 0.76f, 0.25f), new Vector3(0.45f, 0.02f, 0.16f), darkCharcoal);
+            CreatePart(counter.transform, "Mouse", new Vector3(0.12f, 0.76f, 0.25f), new Vector3(0.06f, 0.025f, 0.10f), darkCharcoal);
+
+            // PC Tower under the desk
+            CreatePart(counter.transform, "PC_Tower", new Vector3(0.65f, 0.35f, 0.05f), new Vector3(0.20f, 0.44f, 0.45f), darkCharcoal);
+
+            // --- 4. BARCODE SCANNER (On the SAME counter desk right beside the monitor) ---
+            GameObject scannerStand = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            scannerStand.name = "Scanner_Stand";
+            scannerStand.transform.SetParent(counter.transform);
+            scannerStand.transform.localPosition = new Vector3(0.35f, 0.76f, 0.18f);
+            scannerStand.transform.localScale = new Vector3(0.18f, 0.04f, 0.18f);
+            SetMaterialColor(scannerStand, darkCharcoal);
+
+            // Interactive Handheld Barcode Scanner
+            GameObject scannerGo = new GameObject("Handheld_Barcode_Scanner");
+            scannerGo.transform.position = counter.transform.TransformPoint(new Vector3(0.35f, 0.90f, 0.18f));
+            scannerGo.transform.rotation = Quaternion.Euler(0f, 180f, 0f);
+
+            var scRb = scannerGo.AddComponent<Rigidbody>();
+            scRb.mass = 0.5f;
+            scRb.collisionDetectionMode = CollisionDetectionMode.Continuous;
+            var scCol = scannerGo.AddComponent<BoxCollider>();
+            scCol.center = new Vector3(0f, 0.02f, 0.02f);
+            scCol.size = new Vector3(0.12f, 0.24f, 0.24f);
+
+            BarcodeScannerItem scannerItem = scannerGo.AddComponent<BarcodeScannerItem>();
+            if (scannerItem != null)
+            {
+                scannerItem.CradleTransform = scannerStand.transform;
+            }
+
+            // --- 5. OPEN/CLOSED STATUS SIGN TABLET (On top reception ledge) ---
+            GameObject signTablet = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            signTablet.name = "Sign_OpenClosed";
+            signTablet.transform.SetParent(counter.transform);
+            signTablet.transform.localPosition = new Vector3(-0.60f, 1.19f, -0.28f);
+            signTablet.transform.localRotation = Quaternion.Euler(20f, 0f, 0f);
+            signTablet.transform.localScale = new Vector3(0.40f, 0.12f, 0.24f);
+
+            Renderer signRend = signTablet.GetComponent<Renderer>();
+            if (signRend != null && signRend.sharedMaterial != null)
+            {
+                signRend.sharedMaterial = new Material(signRend.sharedMaterial) { color = new Color(0.85f, 0.15f, 0.15f) };
+            }
+
+            // --- 6. OZON BRANDED PROMOTIONAL FLYER STAND (As shown in reference photo) ---
+            CreatePart(counter.transform, "Promo_Flyer_Base", new Vector3(0.15f, 1.19f, -0.28f), new Vector3(0.18f, 0.02f, 0.08f), whiteLaminate);
+            CreatePart(counter.transform, "Promo_Flyer_Card", new Vector3(0.15f, 1.32f, -0.28f), new Vector3(0.16f, 0.24f, 0.015f), ozonBlue);
+            CreatePart(counter.transform, "Promo_Flyer_Badge", new Vector3(0.15f, 1.25f, -0.29f), new Vector3(0.12f, 0.06f, 0.01f), ozonMagenta);
+
+            // Wire fields of CheckoutCounter
+            SerializedObject sCounter = new SerializedObject(checkoutCounter);
+            sCounter.FindProperty("_statusSignTablet").objectReferenceValue = signTablet.transform;
+            sCounter.FindProperty("_barcodeScanner").objectReferenceValue = scannerStand.transform;
+            if (scannerItem != null)
+            {
+                sCounter.FindProperty("_scannerItem").objectReferenceValue = scannerItem;
+            }
+            sCounter.FindProperty("_statusSignRenderer").objectReferenceValue = signRend;
+            sCounter.ApplyModifiedProperties();
         }
 
         private static void CreateShelfUnit(string shelfName, string letter, Vector3 position, Quaternion rotation)
@@ -388,7 +433,7 @@ namespace PVZ.Editor
             shelfComp.ConfigureSlots(letter);
         }
 
-        private static GameObject CreatePart(Transform parent, string name, Vector3 localPos, Vector3 localScale)
+        private static GameObject CreatePart(Transform parent, string name, Vector3 localPos, Vector3 localScale, Color? color = null)
         {
             GameObject part = GameObject.CreatePrimitive(PrimitiveType.Cube);
             part.name = name;
@@ -396,7 +441,22 @@ namespace PVZ.Editor
             part.transform.localPosition = localPos;
             part.transform.localRotation = Quaternion.identity;
             part.transform.localScale = localScale;
+            if (color.HasValue)
+            {
+                SetMaterialColor(part, color.Value);
+            }
             return part;
+        }
+
+        private static void SetMaterialColor(GameObject go, Color color)
+        {
+            Renderer rend = go.GetComponent<Renderer>();
+            if (rend != null)
+            {
+                Shader shader = Shader.Find("Universal Render Pipeline/Lit");
+                if (shader == null) shader = Shader.Find("Standard");
+                rend.sharedMaterial = new Material(shader) { color = color };
+            }
         }
 
         private static void CreateWallCalendar(Vector3 position, Quaternion rotation)

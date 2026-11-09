@@ -49,9 +49,38 @@ namespace PVZ.Counter
         {
             UpdateSignVisuals();
             EnsureScannerInScene();
+            EnsureComputerOnCounter();
             if (CustomerQueueManager.Instance != null)
             {
                 CustomerQueueManager.Instance.OnStoreOpenStatusChanged += HandleStoreStatusChanged;
+            }
+        }
+
+        /// <summary>
+        /// Ensures the computer terminal is positioned right on the service counter desk next to the scanner.
+        /// </summary>
+        public void EnsureComputerOnCounter()
+        {
+            Computer.ComputerTerminal terminal = FindFirstObjectByType<Computer.ComputerTerminal>();
+            if (terminal == null)
+            {
+                return;
+            }
+
+            Transform targetRoot = (terminal.transform.parent != null && terminal.transform.parent.name == "ComputerWorkstation")
+                ? terminal.transform.parent
+                : terminal.transform;
+
+            if (Vector3.Distance(transform.position, terminal.transform.position) > 2.2f)
+            {
+                terminal.transform.SetParent(transform);
+                terminal.transform.localPosition = new Vector3(-0.25f, 1.05f, 0.05f);
+                terminal.transform.localRotation = Quaternion.identity;
+
+                if (targetRoot != terminal.transform)
+                {
+                    Destroy(targetRoot.gameObject);
+                }
             }
         }
 
