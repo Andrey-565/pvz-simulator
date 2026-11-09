@@ -350,8 +350,8 @@ namespace PVZ.Delivery
             {
                 float achW = 340f;
                 float achH = 80f;
-                float achX = Screen.width - achW - 24f;
-                float achY = Screen.height - achH - 24f;
+                float achX = Screen.width - achW - 20f;
+                float achY = Screen.height - achH - 68f;
 
                 // Dark Steam overlay background
                 GUIStyle bgStyle = new GUIStyle(GUI.skin.box);

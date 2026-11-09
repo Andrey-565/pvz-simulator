@@ -111,5 +111,32 @@ namespace PVZ.Economy
             _currentBalance = (float)Math.Round(_currentBalance, 2);
             OnBalanceChanged?.Invoke(_currentBalance);
         }
+
+        private void OnGUI()
+        {
+            DrawMoneyHUD();
+        }
+
+        /// <summary>
+        /// Displays cash funds in the bottom-right corner of the player HUD.
+        /// </summary>
+        private void DrawMoneyHUD()
+        {
+            float width = 180f;
+            float height = 40f;
+            float x = Screen.width - width - 20f;
+            float y = Screen.height - height - 20f;
+
+            GUIStyle boxStyle = new GUIStyle(GUI.skin.box)
+            {
+                alignment = TextAnchor.MiddleCenter,
+                fontSize = 15,
+                fontStyle = FontStyle.Bold
+            };
+            boxStyle.normal.textColor = Color.white;
+
+            string moneyText = $"<size=16>💰</size> <color=#00FF66>{FormatMoney(_currentBalance)}</color>";
+            GUI.Box(new Rect(x, y, width, height), moneyText, boxStyle);
+        }
     }
 }

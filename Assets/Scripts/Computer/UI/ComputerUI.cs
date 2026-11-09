@@ -74,11 +74,13 @@ namespace PVZ.Computer.UI
 
         private void DrawWindowContent(int windowId)
         {
-            float balance = EconomyManager.Instance != null ? EconomyManager.Instance.CurrentBalance : 0f;
+            string ratingDisplay = (RatingManager.Instance != null)
+                ? RatingManager.Instance.GetFormattedRating()
+                : "Новый ПВЗ (0/50)";
 
             // Top Bar
             GUILayout.BeginHorizontal();
-            GUILayout.Label($"<b>Сотрудник:</b> Оператор ПВЗ | <b>Баланс кассы:</b> <color=green>{EconomyManager.FormatMoney(balance)}</color>", GUILayout.Height(25));
+            GUILayout.Label($"<b>Сотрудник:</b> Оператор ПВЗ | <b>Рейтинг ПВЗ:</b> <color=#FFD700>{ratingDisplay}</color>", GUILayout.Height(25));
             GUILayout.FlexibleSpace();
             if (GUILayout.Button("✕ Закрыть [Esc]", GUILayout.Width(110), GUILayout.Height(25)))
             {
@@ -98,6 +100,10 @@ namespace PVZ.Computer.UI
             {
                 _selectedTab = 1;
             }
+            if (GUILayout.Toggle(_selectedTab == 2, " ⭐ Рейтинг и Отзывы (Rating) ", "Button", GUILayout.Height(30)))
+            {
+                _selectedTab = 2;
+            }
             GUILayout.EndHorizontal();
 
             GUILayout.Space(12);
@@ -105,11 +111,15 @@ namespace PVZ.Computer.UI
             // Content per tab
             if (_selectedTab == 0)
             {
-                DrawMarketTab(balance);
+                DrawMarketTab();
+            }
+            else if (_selectedTab == 1)
+            {
+                DrawWarehouseTab();
             }
             else
             {
-                DrawWarehouseTab();
+                DrawRatingTab();
             }
 
             // Status message
@@ -127,7 +137,7 @@ namespace PVZ.Computer.UI
             }
         }
 
-        private void DrawMarketTab(float balance)
+        private void DrawMarketTab()
         {
             // Delivery Status Card inside PC UI
             if (DeliveryManager.Instance != null)
@@ -298,6 +308,75 @@ namespace PVZ.Computer.UI
 
                 GUILayout.EndHorizontal();
             }
+
+            GUILayout.EndScrollView();
+        }
+
+        private void DrawRatingTab()
+        {
+            var rm = RatingManager.Instance;
+            if (rm == null)
+            {
+                GUILayout.Label("RatingManager не обнаружен в сцене.");
+                return;
+            }
+
+            _scrollPos = GUILayout.BeginScrollView(_scrollPos, GUILayout.Height(360));
+
+            GUILayout.BeginVertical("box");
+            GUILayout.Label("<b>⭐ ОФИЦИАЛЬНЫЙ РЕЙТИНГ ПУНКТА ВЫДАЧИ ЗАКАЗОВ (ПВЗ)</b>", GUILayout.Height(24));
+
+            if (!rm.HasRating)
+            {
+                GUILayout.Space(6);
+                GUILayout.Label("<size=16><b>Статус ПВЗ:</b> <color=cyan>НОВЫЙ ПУНКТ ВЫДАЧИ (Без оценки)</color></size>");
+                GUILayout.Space(4);
+                GUILayout.Label($"<b>Прогресс до первой официальной оценки:</b> <color=yellow>{rm.TotalOrdersHandled} из {rm.MinOrdersForRating} выданных заказов</color>");
+
+                float progress = Mathf.Clamp01((float)rm.TotalOrdersHandled / rm.MinOrdersForRating);
+                int percent = Mathf.RoundToInt(progress * 100f);
+
+                int barLength = 25;
+                int filled = Mathf.RoundToInt(progress * barLength);
+                string bar = new string('█', filled) + new string('░', barLength - filled);
+                GUILayout.Label($"<color=#00FF66>[{bar}] {percent}%</color>");
+
+                GUILayout.Space(6);
+                GUILayout.Label("<size=11><i>Первая оценка ПВЗ появится в системе автоматически после выполнения 50 заказов на основе среднего арифметического балла всех отзывов.</i></size>");
+            }
+            else
+            {
+                GUILayout.Space(6);
+                string starsVisual = string.Empty;
+                int fullStars = Mathf.RoundToInt(rm.CurrentRating);
+                for (int i = 1; i <= 5; i++)
+                {
+                    starsVisual += (i <= fullStars) ? "★" : "☆";
+                }
+
+                GUILayout.Label($"<size=20><color=#FFD700>{starsVisual} {rm.CurrentRating:F1}</color> / 5.0</size>");
+                GUILayout.Space(4);
+                GUILayout.Label($"<b>Всего отзывов клиентов:</b> {rm.TotalOrdersHandled} шт.");
+                GUILayout.Label($"<b>Текущий денежный коэффициент ПВЗ:</b> <color=#00FF66>x{rm.CurrentMoneyMultiplier:0.#} ₽</color>");
+                GUILayout.Label($"<b>Очки репутации сотрудника:</b> {(rm.RatingPoints >= 0 ? "+" : "")}{rm.RatingPoints}");
+            }
+            GUILayout.EndVertical();
+
+            GUILayout.Space(10);
+
+            // Rating multiplier guide table
+            GUILayout.BeginVertical("box");
+            GUILayout.Label("<b>📊 ТАРИФНАЯ СЕТКА И ЭКОНОМИКА ЗАКАЗОВ:</b>", GUILayout.Height(22));
+            GUILayout.Label("• <b>Базовая ставка за заказ:</b> 1.00 ₽");
+            GUILayout.Label("• <b>Бонус за скорость (≤ 15 сек):</b> +1 репутация, коэффициент <b>x1.1</b> к оплате");
+            GUILayout.Label("• <b>Множители от звёздного рейтинга ПВЗ (после 50 заказов):</b>");
+            GUILayout.Label("   - 5.0★ : <b>x1.2</b> (премиальный статус отделения)");
+            GUILayout.Label("   - 4.0★ : <b>x1.0</b> (нормативный тариф)");
+            GUILayout.Label("   - 3.0★ : <b>x1.0</b> (стандартный тариф)");
+            GUILayout.Label("   - 2.0★ : <b>x0.9</b> (штрафной коэффициент за задержки)");
+            GUILayout.Label("   - 1.0★ : <b>x0.8</b> (минимальная ставка)");
+            GUILayout.Label("• До выполнения 50 заказов действует базовый множитель <b>x1.0</b>.");
+            GUILayout.EndVertical();
 
             GUILayout.EndScrollView();
         }
