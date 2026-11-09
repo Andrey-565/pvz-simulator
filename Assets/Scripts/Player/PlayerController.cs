@@ -26,6 +26,10 @@ namespace PVZ.Player
         [Tooltip("Speed of transition between standing and crouching.")]
         [SerializeField] private float _crouchTransitionSpeed = 10.0f;
 
+        [Header("Carrying Settings")]
+        [Tooltip("Movement speed multiplier when carrying a parcel box.")]
+        [SerializeField] private float _carryingBoxSpeedMultiplier = 0.65f;
+
         [Header("Look Settings")]
         [Tooltip("First-person camera transform.")]
         [SerializeField] private Transform _cameraTransform;
@@ -40,6 +44,7 @@ namespace PVZ.Player
         [SerializeField] private float _maxPitchAngle = 85f;
 
         private CharacterController _characterController;
+        private Interactions.PickupController _pickupController;
         private float _verticalVelocity;
         private float _cameraPitch;
         private bool _isMovementLocked;
@@ -69,6 +74,7 @@ namespace PVZ.Player
         {
             Instance = this;
             _characterController = GetComponent<CharacterController>();
+            _pickupController = GetComponent<Interactions.PickupController>();
 
             EnsureCamera();
 
@@ -279,6 +285,17 @@ namespace PVZ.Player
             }
 
             float currentSpeed = _isCrouching ? _crouchSpeed : _moveSpeed;
+
+            if (_pickupController == null)
+            {
+                _pickupController = GetComponent<Interactions.PickupController>();
+            }
+
+            if (_pickupController != null && _pickupController.IsCarryingBox)
+            {
+                currentSpeed *= _carryingBoxSpeedMultiplier;
+            }
+
             Vector3 velocity = (moveDirection * currentSpeed) + (Vector3.up * _verticalVelocity);
             _characterController.Move(velocity * Time.deltaTime);
         }
