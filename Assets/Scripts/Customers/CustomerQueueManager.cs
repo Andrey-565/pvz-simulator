@@ -363,10 +363,10 @@ namespace PVZ.Customers
                 stockNotice = " | <color=yellow>Склад пуст (ждем поставку)</color>";
             }
 
-            string ratingText = (RatingManager.Instance != null) ? RatingManager.Instance.GetFormattedRating() : "2.5★";
+            string ratingText = (RatingManager.Instance != null) ? RatingManager.Instance.GetFormattedRating() : "Новый ПВЗ (0/50)";
             string barContent = $" ПВЗ: {openText}{stockNotice} | Очередь: {_activeQueue.Count}/{_maxQueueSize} | Рейтинг: {ratingText}";
 
-            GUI.Box(new Rect(15, 15, 420, 26), barContent, statusStyle);
+            GUI.Box(new Rect(15, 15, 520, 26), barContent, statusStyle);
         }
     }
 }

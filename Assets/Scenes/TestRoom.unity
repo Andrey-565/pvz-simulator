@@ -6627,9 +6627,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b512edcf6ba3c4f459393340739217bc, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PVZ.Economy.RatingManager
-  _currentStarRating: 2.5
-  _ratingPoints: 10
+  _minOrdersForRating: 50
   _totalOrdersHandled: 0
+  _totalStarsSum: 0
+  _ratingPoints: 0
   _fastDeliveriesCount: 0
   _delayedDeliveriesCount: 0
 --- !u!1 &1856986451

@@ -248,35 +248,41 @@ namespace PVZ.Customers
                 return false;
             }
 
-            // Calculate rating delta based on exact user specification:
-            // 0 - 15s: +1 очко рейтинга
-            // 15 - 45s: 0 (нейтрально)
-            // 45 - 60s: -1 очко рейтинга
-            // 60 - 120s: -3 очка рейтинга
-            // > 120s: -5 очков рейтинга
+            // Calculate rating delta and customer review stars (1 - 5★):
+            // 0 - 15s: 5★ (+1 очко рейтинга)
+            // 15 - 45s: 4★ (нейтрально: 0)
+            // 45 - 60s: 3★ (-1 очко рейтинга)
+            // 60 - 120s: 2★ (-3 очка рейтинга)
+            // > 120s: 1★ (-5 очков рейтинга)
+            int orderStars;
             string speedLabel;
             if (_elapsedTimeAfterScan <= 15.0f)
             {
+                orderStars = 5;
                 ratingDelta = 1;
                 speedLabel = "Быстрое обслуживание! (+1 очко рейтинга)";
             }
             else if (_elapsedTimeAfterScan <= 45.0f)
             {
+                orderStars = 4;
                 ratingDelta = 0;
                 speedLabel = "Стандартная выдача (нейтрально: 0)";
             }
             else if (_elapsedTimeAfterScan <= 60.0f)
             {
+                orderStars = 3;
                 ratingDelta = -1;
                 speedLabel = "Задержка заказа (-1 очко рейтинга)";
             }
             else if (_elapsedTimeAfterScan <= 120.0f)
             {
+                orderStars = 2;
                 ratingDelta = -3;
                 speedLabel = "Долгое ожидание (-3 очка рейтинга)";
             }
             else
             {
+                orderStars = 1;
                 ratingDelta = -5;
                 speedLabel = "Критическое опоздание (-5 очков рейтинга)";
             }
@@ -284,7 +290,7 @@ namespace PVZ.Customers
             // Economy calculation per user specification:
             // Base reward: 1 ruble per parcel.
             // Speed bonus (+1 rep): x1.1 multiplier.
-            // PVZ star rating multiplier: 5★ = 1.2x, 4★ = 1.0x, 3★ = 1.0x, 2★ = 0.9x, 1★ = 0.8x.
+            // PVZ star rating multiplier (active only after 50 orders): 5★ = 1.2x, 4★ = 1.0x, 3★ = 1.0x, 2★ = 0.9x, 1★ = 0.8x.
             float baseReward = 1.0f;
             float speedMultiplier = (ratingDelta > 0) ? 1.1f : 1.0f;
             float ratingMultiplier = (RatingManager.Instance != null) ? RatingManager.Instance.CurrentMoneyMultiplier : 1.0f;
@@ -299,7 +305,7 @@ namespace PVZ.Customers
 
             if (RatingManager.Instance != null)
             {
-                RatingManager.Instance.ApplyRatingDelta(ratingDelta, $"Клиент #{_targetOrderId} обслужен за {TimeFormatter.FormatMinutesSeconds(_elapsedTimeAfterScan)}");
+                RatingManager.Instance.RecordOrder(orderStars, ratingDelta, $"Клиент #{_targetOrderId} обслужен за {TimeFormatter.FormatMinutesSeconds(_elapsedTimeAfterScan)}");
             }
 
             // Customer reaction speech
@@ -309,11 +315,24 @@ namespace PVZ.Customers
 
             ShowSpeech(speech, isAngry: ratingDelta < 0, duration: 3.5f);
 
-            string bonusDetails = (ratingDelta > 0 || ratingMultiplier != 1.0f)
-                ? $" [x{speedMultiplier:0.#} скорость, x{ratingMultiplier:0.#} рейтинг]"
+            string ratingProgress = string.Empty;
+            if (RatingManager.Instance != null)
+            {
+                if (!RatingManager.Instance.HasRating)
+                {
+                    ratingProgress = $" [Оценка: {orderStars}★ | До рейтинга: {RatingManager.Instance.TotalOrdersHandled}/{RatingManager.Instance.MinOrdersForRating}]";
+                }
+                else
+                {
+                    ratingProgress = $" [Оценка: {orderStars}★ | Рейтинг ПВЗ: {RatingManager.Instance.CurrentRating:F1}★]";
+                }
+            }
+
+            string bonusDetails = (ratingDelta > 0 || (RatingManager.Instance != null && RatingManager.Instance.HasRating && ratingMultiplier != 1.0f))
+                ? $" [x{speedMultiplier:0.#} скорость{(RatingManager.Instance != null && RatingManager.Instance.HasRating ? $", x{ratingMultiplier:0.#} рейтинг" : string.Empty)}]"
                 : string.Empty;
 
-            feedbackMessage = $"✔ Заказ #{_targetOrderId} успешно выдан! Оплата: +{EconomyManager.FormatMoney(paymentAwarded)}{bonusDetails}. {speedLabel}";
+            feedbackMessage = $"✔ Заказ #{_targetOrderId} успешно выдан! Оплата: +{EconomyManager.FormatMoney(paymentAwarded)}{bonusDetails}.{ratingProgress} {speedLabel}";
 
             // Destroy the box item GameObject as it is handed over
             Destroy(box.gameObject);
