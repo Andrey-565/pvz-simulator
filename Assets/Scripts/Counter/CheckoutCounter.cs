@@ -17,8 +17,11 @@ namespace PVZ.Counter
         [Tooltip("Transform of the Open/Closed sign tablet on the counter.")]
         [SerializeField] private Transform _statusSignTablet;
 
-        [Tooltip("Transform of the barcode scanner device.")]
+        [Tooltip("Transform of the barcode scanner device or stand.")]
         [SerializeField] private Transform _barcodeScanner;
+
+        [Tooltip("Interactive physical handheld barcode scanner.")]
+        [SerializeField] private BarcodeScannerItem _scannerItem;
 
         [Tooltip("Renderer of the status sign tablet to toggle between green and red.")]
         [SerializeField] private Renderer _statusSignRenderer;
@@ -33,6 +36,11 @@ namespace PVZ.Counter
         public Transform BarcodeScanner => _barcodeScanner;
 
         /// <summary>
+        /// Gets the interactive handheld scanner item.
+        /// </summary>
+        public BarcodeScannerItem ScannerItem => _scannerItem;
+
+        /// <summary>
         /// Gets the Open/Closed sign tablet transform.
         /// </summary>
         public Transform StatusSignTablet => _statusSignTablet;
@@ -40,9 +48,41 @@ namespace PVZ.Counter
         private void Start()
         {
             UpdateSignVisuals();
+            EnsureScannerInScene();
             if (CustomerQueueManager.Instance != null)
             {
                 CustomerQueueManager.Instance.OnStoreOpenStatusChanged += HandleStoreStatusChanged;
+            }
+        }
+
+        /// <summary>
+        /// Ensures an interactive BarcodeScannerItem exists on the counter.
+        /// </summary>
+        public void EnsureScannerInScene()
+        {
+            if (_scannerItem != null)
+            {
+                return;
+            }
+
+            _scannerItem = FindFirstObjectByType<BarcodeScannerItem>();
+            if (_scannerItem != null)
+            {
+                return;
+            }
+
+            // Create scanner item on the counter
+            GameObject scannerGo = new GameObject("Handheld_Barcode_Scanner");
+            Vector3 spawnPos = (_barcodeScanner != null)
+                ? _barcodeScanner.position + Vector3.up * 0.15f
+                : transform.position + new Vector3(0.8f, 1.05f, 0f);
+            scannerGo.transform.position = spawnPos;
+            scannerGo.transform.rotation = Quaternion.Euler(0f, 180f, 0f);
+
+            _scannerItem = scannerGo.AddComponent<BarcodeScannerItem>();
+            if (_barcodeScanner != null)
+            {
+                _scannerItem.CradleTransform = _barcodeScanner;
             }
         }
 

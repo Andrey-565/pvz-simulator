@@ -125,6 +125,12 @@ namespace PVZ.Warehouse
                 return false;
             }
 
+            if (!box.IsIntakeScanned)
+            {
+                Debug.LogWarning($"<color=yellow>[WarehouseSlot]</color> Нельзя положить заказ #{box.OrderId} в ячейку [{_slotId}]: посылка не принята сканером!");
+                return false;
+            }
+
             _currentBox = box;
             _currentBox.SetSlot(_slotId);
             _currentBox.PlaceAt(SnapPoint.position, SnapPoint.rotation);

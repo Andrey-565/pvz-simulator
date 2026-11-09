@@ -130,32 +130,31 @@ namespace PVZ.Editor
                 signRend.sharedMaterial = mat;
             }
 
-            // Barcode Scanner Device
-            GameObject scannerObj = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            scannerObj.name = "Barcode_Scanner";
-            scannerObj.transform.SetParent(counter.transform);
-            scannerObj.transform.localPosition = new Vector3(0.8f, 0.55f, 0f);
-            scannerObj.transform.localRotation = Quaternion.identity;
-            scannerObj.transform.localScale = new Vector3(0.25f, 0.15f, 0.3f);
-
-            Renderer scanRend = scannerObj.GetComponent<Renderer>();
-            if (scanRend != null && scanRend.sharedMaterial != null)
-            {
-                Material mat = new Material(scanRend.sharedMaterial) { color = new Color(0.2f, 0.2f, 0.25f) };
-                scanRend.sharedMaterial = mat;
-            }
-
-            // Scanner Stand
+            // Scanner Stand / Cradle
             GameObject scannerStand = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
             scannerStand.name = "Scanner_Stand";
-            scannerStand.transform.SetParent(scannerObj.transform);
-            scannerStand.transform.localPosition = new Vector3(0f, -0.6f, 0f);
-            scannerStand.transform.localScale = new Vector3(0.3f, 0.6f, 0.3f);
+            scannerStand.transform.SetParent(counter.transform);
+            scannerStand.transform.localPosition = new Vector3(0.8f, 0.52f, 0f);
+            scannerStand.transform.localScale = new Vector3(0.18f, 0.04f, 0.18f);
+
+            Renderer standRend = scannerStand.GetComponent<Renderer>();
+            if (standRend != null && standRend.sharedMaterial != null)
+            {
+                standRend.sharedMaterial = new Material(standRend.sharedMaterial) { color = new Color(0.15f, 0.15f, 0.18f) };
+            }
+
+            // Handheld Barcode Scanner Item
+            GameObject scannerGo = new GameObject("Handheld_Barcode_Scanner");
+            scannerGo.transform.position = counter.transform.position + new Vector3(0.8f, 1.05f, 0f);
+            scannerGo.transform.rotation = Quaternion.Euler(0f, 180f, 0f);
+            BarcodeScannerItem scannerItem = scannerGo.AddComponent<BarcodeScannerItem>();
+            scannerItem.CradleTransform = scannerStand.transform;
 
             // Wire fields of CheckoutCounter
             SerializedObject sCounter = new SerializedObject(checkoutCounter);
             sCounter.FindProperty("_statusSignTablet").objectReferenceValue = signTablet.transform;
-            sCounter.FindProperty("_barcodeScanner").objectReferenceValue = scannerObj.transform;
+            sCounter.FindProperty("_barcodeScanner").objectReferenceValue = scannerStand.transform;
+            sCounter.FindProperty("_scannerItem").objectReferenceValue = scannerItem;
             sCounter.FindProperty("_statusSignRenderer").objectReferenceValue = signRend;
             sCounter.ApplyModifiedProperties();
 

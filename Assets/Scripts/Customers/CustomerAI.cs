@@ -80,6 +80,10 @@ namespace PVZ.Customers
         /// </summary>
         public CustomerState State => _state;
 
+        private Transform _armPivot;
+        private Renderer _phoneScreenRenderer;
+        private float _screenFlashTimer;
+
         /// <summary>
         /// True if customer is standing in front of the counter ready to be served.
         /// </summary>
@@ -90,6 +94,99 @@ namespace PVZ.Customers
             _navAgent = GetComponent<NavMeshAgent>();
             _isScanned = false;
             _elapsedTimeAfterScan = 0f;
+            BuildArmAndPhone();
+        }
+
+        private void BuildArmAndPhone()
+        {
+            if (transform.Find("ArmPivot") != null)
+            {
+                return;
+            }
+
+            GameObject pivot = new GameObject("ArmPivot");
+            pivot.transform.SetParent(transform);
+            pivot.transform.localPosition = new Vector3(0.42f, 0.40f, 0.05f);
+            pivot.transform.localRotation = Quaternion.identity;
+            _armPivot = pivot.transform;
+
+            // Arm limb
+            GameObject arm = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            arm.name = "ArmLimb";
+            arm.transform.SetParent(pivot.transform);
+            arm.transform.localPosition = new Vector3(0f, -0.22f, 0f);
+            arm.transform.localScale = new Vector3(0.12f, 0.40f, 0.12f);
+            Renderer bodyRend = GetComponent<Renderer>();
+            if (bodyRend != null)
+            {
+                arm.GetComponent<Renderer>().material = bodyRend.material;
+            }
+            Collider armCol = arm.GetComponent<Collider>();
+            if (armCol != null)
+            {
+                DestroyImmediate(armCol);
+            }
+
+            // Smartphone body in hand
+            GameObject phone = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            phone.name = "Smartphone";
+            phone.transform.SetParent(pivot.transform);
+            phone.transform.localPosition = new Vector3(0f, -0.42f, 0.08f);
+            phone.transform.localRotation = Quaternion.Euler(20f, 0f, 0f);
+            phone.transform.localScale = new Vector3(0.10f, 0.018f, 0.18f);
+
+            Shader litShader = Shader.Find("Universal Render Pipeline/Lit");
+            if (litShader == null) litShader = Shader.Find("Standard");
+            phone.GetComponent<Renderer>().material = new Material(litShader) { color = new Color(0.1f, 0.1f, 0.12f) };
+
+            // Smartphone screen (Barcode screen glowing white/cyan)
+            GameObject screen = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            screen.name = "PhoneScreen";
+            screen.transform.SetParent(phone.transform);
+            screen.transform.localPosition = new Vector3(0f, 0.55f, 0f);
+            screen.transform.localScale = new Vector3(0.88f, 0.2f, 0.88f);
+
+            Shader unlitShader = Shader.Find("Universal Render Pipeline/Unlit");
+            if (unlitShader == null) unlitShader = Shader.Find("Sprites/Default");
+            _phoneScreenRenderer = screen.GetComponent<Renderer>();
+            _phoneScreenRenderer.material = new Material(unlitShader) { color = new Color(0.9f, 0.95f, 1.0f) };
+        }
+
+        private void UpdateArmAndPhonePose()
+        {
+            if (_armPivot == null)
+            {
+                return;
+            }
+
+            Quaternion targetRot;
+            if (IsAtCounter && !_isScanned)
+            {
+                // Extended forward across the counter holding phone towards operator!
+                targetRot = Quaternion.Euler(-80f, -12f, 0f);
+            }
+            else if (IsAtCounter && _isScanned)
+            {
+                // Lowered comfortably after code is scanned
+                targetRot = Quaternion.Euler(-25f, -5f, 0f);
+            }
+            else
+            {
+                // Relaxed at side while moving or in back queue
+                targetRot = Quaternion.Euler(0f, 0f, 0f);
+            }
+
+            _armPivot.localRotation = Quaternion.Slerp(_armPivot.localRotation, targetRot, Time.deltaTime * 6f);
+
+            // Screen flash effect on scan
+            if (_screenFlashTimer > 0f)
+            {
+                _screenFlashTimer -= Time.deltaTime;
+                if (_screenFlashTimer <= 0f && _phoneScreenRenderer != null)
+                {
+                    _phoneScreenRenderer.material.color = new Color(0.3f, 0.85f, 0.35f); // Green confirmed screen
+                }
+            }
         }
 
         /// <summary>
@@ -102,6 +199,7 @@ namespace PVZ.Customers
             _isScanned = false;
             _elapsedTimeAfterScan = 0f;
             _state = CustomerState.Spawning;
+            BuildArmAndPhone();
         }
 
         /// <summary>
@@ -130,11 +228,18 @@ namespace PVZ.Customers
 
             _isScanned = true;
             _elapsedTimeAfterScan = 0f;
+            _screenFlashTimer = 0.5f;
+            if (_phoneScreenRenderer != null)
+            {
+                _phoneScreenRenderer.material.color = Color.green;
+            }
             ShowSpeech($"Код принят! Заказ #{_targetOrderId}", isAngry: false, duration: 3.0f);
         }
 
         private void Update()
         {
+            UpdateArmAndPhonePose();
+
             // Update speech message duration
             if (_speechTimer > 0f)
             {
