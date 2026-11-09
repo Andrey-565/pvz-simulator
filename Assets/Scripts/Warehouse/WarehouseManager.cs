@@ -131,7 +131,55 @@ namespace PVZ.Warehouse
         /// <returns>Warehouse slot holding the order, or null if not slotted.</returns>
         public WarehouseSlot FindSlotByOrderId(int orderId)
         {
-            return _registeredSlots.FirstOrDefault(s => !s.IsEmpty && s.CurrentBox.OrderId == orderId);
+            return _registeredSlots.FirstOrDefault(s => s.ContainsOrderId(orderId));
+        }
+
+        /// <summary>
+        /// Total number of individual product parcels stored across all slots in the warehouse.
+        /// </summary>
+        public int TotalStoredProductsCount => _registeredSlots.Sum(s => s.StoredCount);
+
+        /// <summary>
+        /// Collects all product tracking order IDs currently stored across all warehouse shelf slots.
+        /// </summary>
+        public List<int> GetAllAvailableOrderIds()
+        {
+            var ids = new List<int>();
+            foreach (var slot in _registeredSlots)
+            {
+                foreach (var product in slot.StoredProducts)
+                {
+                    if (product != null && product.OrderId > 0 && !ids.Contains(product.OrderId))
+                    {
+                        ids.Add(product.OrderId);
+                    }
+                }
+            }
+            return ids;
+        }
+
+        /// <summary>
+        /// Highlights all warehouse shelf slots containing any of the requested order IDs.
+        /// </summary>
+        public void HighlightSlotsForOrders(IEnumerable<int> orderIds, float duration = 15.0f)
+        {
+            if (orderIds == null) return;
+            foreach (int id in orderIds)
+            {
+                var slot = FindSlotByOrderId(id);
+                if (slot != null)
+                {
+                    slot.Highlight(duration, id);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Returns all slots that still have room for at least one more product parcel (StoredCount < MaxCapacity).
+        /// </summary>
+        public List<WarehouseSlot> GetAvailableSlots()
+        {
+            return _registeredSlots.Where(s => !s.IsFull).ToList();
         }
 
         /// <summary>

@@ -39,6 +39,8 @@ namespace PVZ.Interactions
 
         private BoxItem _currentBox;
         private BoxItem _hoveredBox;
+        private SupplyBox _currentSupplyBox;
+        private SupplyBox _hoveredSupplyBox;
         private BarcodeScannerItem _currentScanner;
         private BarcodeScannerItem _hoveredScannerItem;
         private WarehouseSlot _hoveredSlot;
@@ -59,14 +61,29 @@ namespace PVZ.Interactions
         public event Action<string> OnInteractionPromptChanged;
 
         /// <summary>
-        /// Gets the box currently held in player hands, or null if hands are empty.
+        /// Gets the product parcel currently held in player hands, or null if hands are empty.
         /// </summary>
         public BoxItem CurrentBox => _currentBox;
 
         /// <summary>
-        /// Indicates whether player hands are currently occupied with a parcel box.
+        /// Gets the delivery supply crate currently held in player hands, or null.
         /// </summary>
-        public bool IsCarryingBox => _currentBox != null;
+        public SupplyBox CurrentSupplyBox => _currentSupplyBox;
+
+        /// <summary>
+        /// Indicates whether player hands are currently occupied with either a product parcel or a supply crate.
+        /// </summary>
+        public bool IsCarryingBox => _currentBox != null || _currentSupplyBox != null;
+
+        /// <summary>
+        /// Indicates whether player hands are currently holding an individual product parcel.
+        /// </summary>
+        public bool IsCarryingProduct => _currentBox != null;
+
+        /// <summary>
+        /// Indicates whether player hands are currently holding a large supply crate.
+        /// </summary>
+        public bool IsCarryingSupplyBox => _currentSupplyBox != null;
 
         /// <summary>
         /// Indicates whether player hands are currently holding the handheld barcode scanner.
@@ -74,9 +91,9 @@ namespace PVZ.Interactions
         public bool IsCarryingScanner => _currentScanner != null;
 
         /// <summary>
-        /// True if the player's hands are free (neither holding a box nor a scanner).
+        /// True if the player's hands are free (neither holding a parcel, supply crate, nor scanner).
         /// </summary>
-        public bool HasFreeHands => !IsCarryingBox && !IsCarryingScanner;
+        public bool HasFreeHands => _currentBox == null && _currentSupplyBox == null && _currentScanner == null;
 
         /// <summary>
         /// Gets the handheld scanner currently in player hands, or null.
@@ -145,6 +162,7 @@ namespace PVZ.Interactions
 
             Ray ray = _playerCamera.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));
             BoxItem targetBox = null;
+            SupplyBox targetSupplyBox = null;
             BarcodeScannerItem targetScanner = null;
             WarehouseSlot targetSlot = null;
             ComputerTerminal targetTerminal = null;
@@ -160,6 +178,7 @@ namespace PVZ.Interactions
                 targetTerminal = hit.collider.GetComponentInParent<ComputerTerminal>();
                 targetSlot = hit.collider.GetComponentInParent<WarehouseSlot>();
                 targetBox = hit.collider.GetComponentInParent<BoxItem>();
+                targetSupplyBox = hit.collider.GetComponentInParent<SupplyBox>();
                 targetCustomer = hit.collider.GetComponentInParent<CustomerAI>();
                 targetCounter = hit.collider.GetComponentInParent<CheckoutCounter>();
                 targetCalendar = hit.collider.GetComponentInParent<WallCalendar>();
@@ -184,22 +203,27 @@ namespace PVZ.Interactions
                         }
                         else if (!targetCustomer.IsScanned)
                         {
-                            newPrompt = "[E / ЛКМ] Отсканировать телефон клиента";
+                            newPrompt = $"[E / ЛКМ] Отсканировать телефон клиента ({targetCustomer.TotalRequestedCount} тов.)";
                         }
                         else
                         {
-                            newPrompt = $"Штрихкод клиента #{targetCustomer.TargetOrderId} уже отсканирован!";
+                            string remStr = string.Join(", #", targetCustomer.RemainingOrderIds);
+                            newPrompt = $"Клиент отсканирован (ожидает товары: #{remStr})";
                         }
+                    }
+                    else if (targetSupplyBox != null && !targetSupplyBox.IsCarried)
+                    {
+                        newPrompt = "[E / ЛКМ] Отсканировать и распаковать ящик (5 товаров)";
                     }
                     else if (targetBox != null && !targetBox.IsCarried)
                     {
                         if (!targetBox.IsIntakeScanned)
                         {
-                            newPrompt = $"[E / ЛКМ] Отсканировать посылку #{targetBox.OrderId} (Приёмка груза)";
+                            newPrompt = $"[E / ЛКМ] Отсканировать товар #{targetBox.OrderId} (Приёмка на склад)";
                         }
                         else
                         {
-                            newPrompt = $"Посылка #{targetBox.OrderId} уже принята (готова к размещению на стеллаж)";
+                            newPrompt = $"Товар #{targetBox.OrderId} уже принят (готов к размещению на стеллаж)";
                         }
                     }
                     else if (targetCounter != null)
@@ -219,8 +243,13 @@ namespace PVZ.Interactions
                         newPrompt = "[E] Положить сканер";
                     }
                 }
-                // --- 2. PROMPTS WHEN HOLDING A PARCEL BOX ---
-                else if (IsCarryingBox)
+                // --- 2. PROMPTS WHEN HOLDING A SUPPLY CRATE ---
+                else if (IsCarryingSupplyBox)
+                {
+                    newPrompt = "[E] Поставить ящик на пол | [F] Распаковать ящик (5 товаров)";
+                }
+                // --- 3. PROMPTS WHEN HOLDING AN INDIVIDUAL PRODUCT PARCEL ---
+                else if (IsCarryingProduct)
                 {
                     if (targetCustomer != null)
                     {
@@ -230,7 +259,7 @@ namespace PVZ.Interactions
                         }
                         else if (targetCustomer.IsAtCounter)
                         {
-                            newPrompt = $"[E] Выдать заказ #{_currentBox.OrderId} клиенту";
+                            newPrompt = $"[E] Выдать товар #{_currentBox.OrderId} клиенту";
                         }
                     }
                     else if (targetCounter != null)
@@ -242,33 +271,37 @@ namespace PVZ.Interactions
                         }
                         else
                         {
-                            newPrompt = $"[E] Выдать заказ #{_currentBox.OrderId} клиенту";
+                            newPrompt = $"[E] Выдать товар #{_currentBox.OrderId} клиенту";
                         }
                     }
                     else if (targetSlot != null)
                     {
                         if (!_currentBox.IsIntakeScanned)
                         {
-                            newPrompt = $"Посылка #{_currentBox.OrderId} не принята (отсканируйте сканером)";
+                            newPrompt = $"Товар #{_currentBox.OrderId} не принят (отсканируйте сканером)";
                         }
-                        else if (targetSlot.IsEmpty)
+                        else if (!targetSlot.IsFull)
                         {
-                            newPrompt = $"[E] Разместить заказ #{_currentBox.OrderId} в ячейку {targetSlot.SlotId}";
+                            newPrompt = $"[E] Положить товар #{_currentBox.OrderId} в ячейку {targetSlot.SlotId} ({targetSlot.StoredCount}/5)";
                         }
                         else
                         {
-                            newPrompt = $"Ячейка {targetSlot.SlotId} занята (Заказ #{targetSlot.CurrentBox.OrderId})";
+                            newPrompt = $"Ячейка {targetSlot.SlotId} заполнена (5/5 товаров)";
                         }
                     }
                     else
                     {
-                        newPrompt = "[E] Положить посылку на пол";
+                        newPrompt = "[E] Положить товар на пол";
                     }
                 }
-                // --- 3. PROMPTS WHEN HANDS ARE COMPLETELY FREE ---
+                // --- 4. PROMPTS WHEN HANDS ARE COMPLETELY FREE ---
                 else
                 {
-                    if (targetScanner != null && !targetScanner.IsCarried)
+                    if (targetSupplyBox != null && !targetSupplyBox.IsCarried)
+                    {
+                        newPrompt = "[E] Взять ящик поставки | [F] Распаковать ящик (5 товаров)";
+                    }
+                    else if (targetScanner != null && !targetScanner.IsCarried)
                     {
                         newPrompt = "[E] Взять сканер штрихкодов в руки";
                     }
@@ -292,7 +325,8 @@ namespace PVZ.Interactions
                         }
                         else
                         {
-                            newPrompt = $"Клиент ожидает заказ #{targetCustomer.TargetOrderId}";
+                            string remStr = string.Join(", #", targetCustomer.RemainingOrderIds);
+                            newPrompt = $"Клиент ожидает товары: #{remStr}";
                         }
                     }
                     else if (targetCounter != null)
@@ -312,7 +346,7 @@ namespace PVZ.Interactions
                     {
                         if (!targetSlot.IsEmpty)
                         {
-                            newPrompt = $"[E] Взять заказ #{targetSlot.CurrentBox.OrderId} из ячейки {targetSlot.SlotId}";
+                            newPrompt = $"[E] Взять товар #{targetSlot.CurrentBox.OrderId} из ячейки {targetSlot.SlotId} ({targetSlot.StoredCount}/5)";
                         }
                         else
                         {
@@ -321,8 +355,8 @@ namespace PVZ.Interactions
                     }
                     else if (targetBox != null && !targetBox.IsCarried)
                     {
-                        string status = targetBox.IsIntakeScanned ? string.Empty : " [Не принята]";
-                        newPrompt = $"[E] Взять посылку #{targetBox.OrderId}{status}";
+                        string status = targetBox.IsIntakeScanned ? string.Empty : " [Не принят]";
+                        newPrompt = $"[E] Взять товар #{targetBox.OrderId}{status}";
                     }
                 }
             }
@@ -334,6 +368,7 @@ namespace PVZ.Interactions
             _isHoveringSign = targetSign;
             _hoveredSlot = targetSlot;
             _hoveredBox = targetBox;
+            _hoveredSupplyBox = targetSupplyBox;
             _hoveredScannerItem = targetScanner;
 
             if (_interactionPrompt != newPrompt)
@@ -344,29 +379,51 @@ namespace PVZ.Interactions
         }
 
         /// <summary>
-        /// Processes pickup, placement, counter operations, scanning, and throw inputs.
+        /// Processes pickup, placement, unpacking, counter operations, scanning, and throw inputs.
         /// </summary>
         private void HandleInput()
         {
             bool isEPressed = Input.GetKeyDown(KeyCode.E);
+            bool isFPressed = Input.GetKeyDown(KeyCode.F);
             bool isLMBPressed = Input.GetMouseButtonDown(0);
             bool isRMBPressed = Input.GetMouseButtonDown(1);
 
-            // 1. Terminal interaction (strictly [E] key when hands free)
+            // 1. Unpacking supply crate via [F] key
+            if (isFPressed)
+            {
+                if (IsCarryingSupplyBox)
+                {
+                    SupplyBox boxToUnpack = _currentSupplyBox;
+                    _currentSupplyBox = null;
+                    boxToUnpack.Unpack(out string fb);
+                    ShowBanner(fb, 4.0f);
+                    return;
+                }
+                else if (HasFreeHands && _hoveredSupplyBox != null && !_hoveredSupplyBox.IsCarried)
+                {
+                    SupplyBox boxToUnpack = _hoveredSupplyBox;
+                    _hoveredSupplyBox = null;
+                    boxToUnpack.Unpack(out string fb);
+                    ShowBanner(fb, 4.0f);
+                    return;
+                }
+            }
+
+            // 2. Terminal interaction (strictly [E] key when hands free)
             if (isEPressed && _hoveredTerminal != null && HasFreeHands)
             {
                 _hoveredTerminal.OpenTerminal(_playerController);
                 return;
             }
 
-            // 2. Wall Calendar interaction (strictly [E] key when hands free)
+            // 3. Wall Calendar interaction (strictly [E] key when hands free)
             if (isEPressed && _hoveredCalendar != null && !_hoveredCalendar.IsOpen && !_hoveredCalendar.JustClosedThisFrame && HasFreeHands)
             {
                 _hoveredCalendar.OpenCalendar(_playerController);
                 return;
             }
 
-            // 3. Open/Close store sign tablet on counter
+            // 4. Open/Close store sign tablet on counter
             if ((isEPressed || isLMBPressed) && _hoveredCounter != null && _isHoveringSign)
             {
                 _hoveredCounter.ToggleOpenClosed(out string fb);
@@ -379,10 +436,10 @@ namespace PVZ.Interactions
             // ==========================================
             if (IsCarryingScanner)
             {
-                // Fire scan at customer's phone or box on E or LMB
+                // Fire scan at customer's phone, supply crate, or individual product parcel
                 if (isEPressed || isLMBPressed)
                 {
-                    if (_hoveredCustomer != null || _hoveredBox != null)
+                    if (_hoveredCustomer != null || _hoveredBox != null || _hoveredSupplyBox != null)
                     {
                         Ray ray = _playerCamera.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));
                         bool success = _currentScanner.FireScan(ray, _interactableLayer, out string msg);
@@ -407,11 +464,23 @@ namespace PVZ.Interactions
             }
 
             // ==========================================
-            // CASE B: PLAYER IS CARRYING A PARCEL BOX
+            // CASE B: PLAYER IS CARRYING A SUPPLY CRATE
             // ==========================================
-            else if (IsCarryingBox)
+            else if (IsCarryingSupplyBox)
             {
-                // Handover box to customer directly or through counter
+                if (isEPressed || isLMBPressed)
+                {
+                    PlaceSupplyBoxOnFloor();
+                    return;
+                }
+            }
+
+            // ==========================================
+            // CASE C: PLAYER IS CARRYING AN INDIVIDUAL PRODUCT PARCEL
+            // ==========================================
+            else if (IsCarryingProduct)
+            {
+                // Handover product to customer directly or through counter
                 if ((isEPressed || isLMBPressed) && (_hoveredCustomer != null || _hoveredCounter != null))
                 {
                     CustomerAI targetCust = _hoveredCustomer;
@@ -429,7 +498,7 @@ namespace PVZ.Interactions
                         }
 
                         BoxItem boxToDeliver = _currentBox;
-                        if (targetCust.TryReceiveOrder(boxToDeliver, out int ratingDelta, out float payment, out string msg))
+                        if (targetCust.TryReceiveOrder(boxToDeliver, out int ratingDelta, out float payment, out string msg, out bool isOrderComplete))
                         {
                             _currentBox = null;
                             ShowBanner(msg);
@@ -443,29 +512,35 @@ namespace PVZ.Interactions
                     }
                 }
 
-                // Place carried box into slot or onto floor
+                // Place carried product into slot or onto floor
                 if (isEPressed || isLMBPressed)
                 {
-                    if (_hoveredSlot != null && _hoveredSlot.IsEmpty)
+                    if (_hoveredSlot != null)
                     {
-                        // User requirement: Cannot place box onto shelf before intake scanning!
+                        // Requirement: Cannot place product onto shelf before intake scanning!
                         if (!_currentBox.IsIntakeScanned)
                         {
-                            ShowBanner($"❌ Нельзя положить посылку #{_currentBox.OrderId} на стеллаж! Сначала отсканируйте её ручным сканером (приёмка груза).");
+                            ShowBanner($"❌ Нельзя положить товар #{_currentBox.OrderId} на стеллаж! Сначала отсканируйте его ручным сканером (приёмка груза).");
+                            return;
+                        }
+
+                        if (_hoveredSlot.IsFull)
+                        {
+                            ShowBanner($"❌ Ячейка [{_hoveredSlot.SlotId}] уже заполнена (5 из 5 товаров)!");
                             return;
                         }
 
                         PlaceIntoSlot(_hoveredSlot);
                         return;
                     }
-                    else if (_hoveredSlot == null)
+                    else
                     {
                         PlaceBoxOnFloor();
                         return;
                     }
                 }
 
-                // Right Click to Throw
+                // Right Click to Throw product
                 if (isRMBPressed)
                 {
                     ThrowBox();
@@ -474,7 +549,7 @@ namespace PVZ.Interactions
             }
 
             // ==========================================
-            // CASE C: PLAYER HAS FREE HANDS
+            // CASE D: PLAYER HAS FREE HANDS
             // ==========================================
             else if (HasFreeHands)
             {
@@ -492,7 +567,14 @@ namespace PVZ.Interactions
                     return;
                 }
 
-                // Pick up box from slot or floor
+                // Pick up supply crate
+                if ((isEPressed || isLMBPressed) && _hoveredSupplyBox != null && !_hoveredSupplyBox.IsCarried)
+                {
+                    PickupSupplyBox(_hoveredSupplyBox);
+                    return;
+                }
+
+                // Pick up product parcel from slot or floor
                 if (isEPressed || isLMBPressed)
                 {
                     if (_hoveredSlot != null && !_hoveredSlot.IsEmpty)
@@ -508,6 +590,51 @@ namespace PVZ.Interactions
                     }
                 }
             }
+        }
+
+        /// <summary>
+        /// Equips a large delivery supply crate into player hands.
+        /// </summary>
+        public void PickupSupplyBox(SupplyBox supplyBox)
+        {
+            if (supplyBox == null || !HasFreeHands)
+            {
+                return;
+            }
+
+            _currentSupplyBox = supplyBox;
+            _currentSupplyBox.PickUp(_holdPoint != null ? _holdPoint : _playerCamera.transform);
+            _hoveredSupplyBox = null;
+            ShowBanner("📦 Ящик поставки взят в руки! Нажмите [F] чтобы распаковать 5 товаров.", 3.5f);
+        }
+
+        /// <summary>
+        /// Places the carried supply crate firmly onto the floor or table surface.
+        /// </summary>
+        public void PlaceSupplyBoxOnFloor()
+        {
+            if (_currentSupplyBox == null)
+            {
+                return;
+            }
+
+            Vector3 placePos;
+            Quaternion placeRot = Quaternion.Euler(0f, transform.eulerAngles.y, 0f);
+
+            Vector3 rayOrigin = transform.position + (transform.forward * 1.4f) + (Vector3.up * 0.5f);
+            if (Physics.Raycast(rayOrigin, Vector3.down, out RaycastHit hit, _placementRayDistance))
+            {
+                placePos = hit.point + (Vector3.up * 0.28f);
+            }
+            else
+            {
+                placePos = rayOrigin + (Vector3.down * 0.5f);
+            }
+
+            SupplyBox boxToPlace = _currentSupplyBox;
+            _currentSupplyBox = null;
+            boxToPlace.PlaceAt(placePos, placeRot);
+            ShowBanner("Ящик поставки поставлен.", 2.0f);
         }
 
         /// <summary>

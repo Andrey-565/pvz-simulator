@@ -317,38 +317,44 @@ namespace PVZ.Items
 
                 if (customer.IsScanned)
                 {
-                    feedback = $"Штрихкод клиента #{customer.TargetOrderId} уже отсканирован!";
+                    string remIds = string.Join(", #", customer.RemainingOrderIds);
+                    feedback = $"Штрихкод клиента уже отсканирован! Ожидаются товары: #{remIds}.";
                     return false;
                 }
 
                 customer.ScanOrder();
-                int orderId = customer.TargetOrderId;
-                WarehouseSlot slot = WarehouseManager.Instance != null ? WarehouseManager.Instance.FindSlotByOrderId(orderId) : null;
-                if (slot != null)
+                if (WarehouseManager.Instance != null)
                 {
-                    slot.Highlight(15.0f);
-                    feedback = $"✔ [Пик!] Штрихкод заказа #{orderId} успешно отсканирован! Посылка в ячейке [{slot.SlotId}] (подсвечена зеленым).";
+                    WarehouseManager.Instance.HighlightSlotsForOrders(customer.RemainingOrderIds, 15.0f);
                 }
-                else
-                {
-                    feedback = $"✔ [Пик!] Штрихкод заказа #{orderId} успешно отсканирован! Посылка на складе (проверьте пол или фуру).";
-                }
+
+                string idsStr = string.Join(", #", customer.RequestedOrderIds);
+                feedback = $"✔ [Пик!] Штрихкод заказа ({customer.TotalRequestedCount} тов.: #{idsStr}) принят! Ячейки на стеллажах подсвечены.";
                 return true;
             }
 
-            // 2. Check Box Item
+            // 2. Check Supply Box (delivery crate from truck)
+            SupplyBox supplyBox = hit.collider.GetComponentInParent<SupplyBox>();
+            if (supplyBox != null)
+            {
+                supplyBox.Unpack(out string unpackFb);
+                feedback = $"✔ [Пик!] {unpackFb}";
+                return true;
+            }
+
+            // 3. Check Individual Product Parcel (BoxItem)
             BoxItem box = hit.collider.GetComponentInParent<BoxItem>();
             if (box != null)
             {
                 if (!box.IsIntakeScanned)
                 {
                     box.SetIntakeScanned(true);
-                    feedback = $"✔ [Пик!] Посылка #{box.OrderId} успешно принята на склад! Теперь её можно разместить на стеллаж.";
+                    feedback = $"✔ [Пик!] Товар #{box.OrderId} успешно принят на склад! Теперь его можно положить на стеллаж.";
                     return true;
                 }
                 else
                 {
-                    feedback = $"Посылка #{box.OrderId} уже принята (готова к размещению на стеллаж).";
+                    feedback = $"Товар #{box.OrderId} уже принят (готов к размещению на стеллаж).";
                     return false;
                 }
             }

@@ -185,11 +185,11 @@ namespace PVZ.Computer.UI
             GUILayout.Label("<b>Бесплатные поставки партий товаров (Лимит: 2 в рабочий день):</b>");
             GUILayout.Space(6);
 
-            DrawSupplyCard("Малая партия коробок", 3, "3 коробки — быстрая разгрузка на полки");
+            DrawSupplyCard("Малая партия поставки", 5, "1 ящик (5 товаров) — быстрая разгрузка и сортировка");
             GUILayout.Space(6);
-            DrawSupplyCard("Стандартная партия коробок", 6, "6 коробок — оптимальный запас на смену");
+            DrawSupplyCard("Стандартная партия поставки", 10, "2 ящика (10 товаров) — оптимальный запас на смену");
             GUILayout.Space(6);
-            DrawSupplyCard("Оптовая партия коробок", 10, "10 коробок — максимальный объём за одну поставку");
+            DrawSupplyCard("Оптовая партия поставки", 15, "3 ящика (15 товаров) — максимальный объём за одну поставку");
         }
 
         private void DrawSupplyCard(string title, int boxCount, string description)
@@ -256,8 +256,9 @@ namespace PVZ.Computer.UI
                 return;
             }
 
+            int crateCount = Mathf.Max(1, (boxCount + 4) / 5);
             OnSupplyBatchOrdered?.Invoke(boxCount);
-            _statusMessage = $"✔ Поставка из {boxCount} коробок оформлена бесплатно! Фура прибудет через {TimeFormatter.FormatMinutesSeconds(20f)}.";
+            _statusMessage = $"✔ Поставка из {crateCount} ящ. ({boxCount} товаров) оформлена бесплатно! Фура прибудет через {TimeFormatter.FormatMinutesSeconds(20f)}.";
             _statusTimer = 6f;
         }
 
@@ -272,17 +273,18 @@ namespace PVZ.Computer.UI
             var allSlots = WarehouseManager.Instance.GetAllSlots();
             int occupiedCount = WarehouseManager.Instance.GetOccupiedSlots().Count;
             int totalSlots = allSlots.Count;
+            int totalProducts = WarehouseManager.Instance.TotalStoredProductsCount;
 
-            GUILayout.Label($"<b>Занятость ячеек склада:</b> {occupiedCount} из {totalSlots} (Свободно: {totalSlots - occupiedCount})");
+            GUILayout.Label($"<b>Складской учёт:</b> Всего ячеек: {totalSlots} (занято: {occupiedCount}, свободно: {totalSlots - occupiedCount}) | <b>Товаров на стеллажах:</b> {totalProducts} шт. (до 5 в ячейке)");
             GUILayout.Space(8);
 
             _scrollPos = GUILayout.BeginScrollView(_scrollPos, "box", GUILayout.Height(320));
 
             GUILayout.BeginHorizontal();
-            GUILayout.Label("<b>Ячейка</b>", GUILayout.Width(80));
-            GUILayout.Label("<b>Статус</b>", GUILayout.Width(120));
-            GUILayout.Label("<b>Номер заказа</b>", GUILayout.Width(140));
-            GUILayout.Label("<b>Действие</b>");
+            GUILayout.Label("<b>Ячейка</b>", GUILayout.Width(75));
+            GUILayout.Label("<b>Вместимость</b>", GUILayout.Width(110));
+            GUILayout.Label("<b>Товары в ячейке</b>", GUILayout.Width(240));
+            GUILayout.Label("<b>Статус</b>");
             GUILayout.EndHorizontal();
 
             GUILayout.Box(GUIContent.none, GUILayout.Height(2));
@@ -291,19 +293,29 @@ namespace PVZ.Computer.UI
             {
                 GUILayout.BeginHorizontal();
 
-                GUILayout.Label($"<b>[{slot.SlotId}]</b>", GUILayout.Width(80));
+                GUILayout.Label($"<b>[{slot.SlotId}]</b>", GUILayout.Width(75));
 
                 if (slot.IsEmpty)
                 {
-                    GUILayout.Label("<color=green>Свободно</color>", GUILayout.Width(120));
-                    GUILayout.Label("—", GUILayout.Width(140));
-                    GUILayout.Label("—");
+                    GUILayout.Label("<color=green>0 / 5 тов.</color>", GUILayout.Width(110));
+                    GUILayout.Label("—", GUILayout.Width(240));
+                    GUILayout.Label("<color=green>Свободно</color>");
                 }
                 else
                 {
-                    GUILayout.Label("<color=yellow>Занято</color>", GUILayout.Width(120));
-                    GUILayout.Label($"Заказ #{slot.CurrentBox.OrderId}", GUILayout.Width(140));
-                    GUILayout.Label("Готов к выдаче");
+                    string colorTag = slot.IsFull ? "red" : "yellow";
+                    GUILayout.Label($"<color={colorTag}>{slot.StoredCount} / 5 тов.</color>", GUILayout.Width(110));
+
+                    var ids = new List<string>();
+                    foreach (var p in slot.StoredProducts)
+                    {
+                        if (p != null) ids.Add($"#{p.OrderId}");
+                    }
+                    string idsText = ids.Count > 0 ? string.Join(", ", ids) : "—";
+                    GUILayout.Label(idsText, GUILayout.Width(240));
+
+                    string statusText = slot.IsFull ? "<color=orange>Заполнена</color>" : "<color=cyan>Доступно место</color>";
+                    GUILayout.Label(statusText);
                 }
 
                 GUILayout.EndHorizontal();

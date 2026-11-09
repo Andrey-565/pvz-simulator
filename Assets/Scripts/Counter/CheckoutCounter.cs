@@ -185,20 +185,13 @@ namespace PVZ.Counter
             // Trigger scan on the customer to unveil order number and start speed timer
             customer.ScanOrder();
 
-            int orderId = customer.TargetOrderId;
-
             if (WarehouseManager.Instance != null)
             {
-                WarehouseSlot slot = WarehouseManager.Instance.FindSlotByOrderId(orderId);
-                if (slot != null)
-                {
-                    slot.Highlight(10.0f);
-                    SetScannerFeedback($"✔ [Пик!] Заказ #{orderId} отсканирован! Лежит в ячейке [{slot.SlotId}] (подсвечена). Таймер пошел!");
-                    return;
-                }
+                WarehouseManager.Instance.HighlightSlotsForOrders(customer.RemainingOrderIds, 15.0f);
             }
 
-            SetScannerFeedback($"✔ [Пик!] Заказ #{orderId} отсканирован! В ячейках не найден (проверьте пол или фуру). Таймер пошел!");
+            string neededList = string.Join(", #", customer.RemainingOrderIds);
+            SetScannerFeedback($"✔ [Пик!] Клиент отсканирован! Требуется {customer.TotalRequestedCount} тов. (#{neededList}). Ячейки подсвечены! Таймер пошел.");
         }
 
         /// <summary>

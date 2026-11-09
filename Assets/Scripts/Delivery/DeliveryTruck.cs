@@ -41,7 +41,7 @@ namespace PVZ.Delivery
 
         [Header("State")]
         [SerializeField] private bool _isArrived;
-        [SerializeField] private List<BoxItem> _cargoBoxes = new List<BoxItem>();
+        [SerializeField] private List<SupplyBox> _cargoSupplyBoxes = new List<SupplyBox>();
         [SerializeField] private bool _isDeparturePending;
         [SerializeField] private float _departureCountdown;
         [SerializeField] private bool _isDrivingWithPlayer;
@@ -70,9 +70,9 @@ namespace PVZ.Delivery
         public bool IsArrived => _isArrived;
 
         /// <summary>
-        /// Number of boxes currently remaining in the truck.
+        /// Number of supply crates currently remaining in the truck.
         /// </summary>
-        public int RemainingBoxCount => _cargoBoxes.Count;
+        public int RemainingBoxCount => _cargoSupplyBoxes.Count;
 
         /// <summary>
         /// True if the truck is currently driving down the road with the player inside.
@@ -87,7 +87,7 @@ namespace PVZ.Delivery
         /// <summary>
         /// True if the truck is active, arriving, parked, unloading, or departing.
         /// </summary>
-        public bool IsTruckBusy => gameObject.activeSelf || _isArrived || _cargoBoxes.Count > 0 || _isDeparturePending || _isDrivingWithPlayer;
+        public bool IsTruckBusy => gameObject.activeSelf || _isArrived || _cargoSupplyBoxes.Count > 0 || _isDeparturePending || _isDrivingWithPlayer;
 
         private void Awake()
         {
@@ -139,18 +139,18 @@ namespace PVZ.Delivery
                 return;
             }
 
-            // Remove box reference once picked up or moved away from cargo bed
-            for (int i = _cargoBoxes.Count - 1; i >= 0; i--)
+            // Remove supply crate reference once picked up, moved away from cargo bed, or unpacked
+            for (int i = _cargoSupplyBoxes.Count - 1; i >= 0; i--)
             {
-                BoxItem box = _cargoBoxes[i];
-                if (box == null || box.IsCarried || box.transform.parent != _cargoBay)
+                SupplyBox box = _cargoSupplyBoxes[i];
+                if (box == null || box.IsCarried || box.IsUnpacked || box.transform.parent != _cargoBay)
                 {
-                    _cargoBoxes.RemoveAt(i);
+                    _cargoSupplyBoxes.RemoveAt(i);
                 }
             }
 
-            // When all boxes are unloaded, initiate 15s departure countdown
-            if (_cargoBoxes.Count == 0 && !_isDeparturePending)
+            // When all supply crates are unloaded/unpacked, initiate 15s departure countdown
+            if (_cargoSupplyBoxes.Count == 0 && !_isDeparturePending)
             {
                 _isDeparturePending = true;
                 _departureCountdown = 15.0f;
@@ -200,7 +200,7 @@ namespace PVZ.Delivery
             _isArrived = false;
             _isDeparturePending = false;
             _isDrivingWithPlayer = false;
-            _cargoBoxes.Clear();
+            _cargoSupplyBoxes.Clear();
 
             // 1. Initial State: Closed doors and folded ramp
             if (_leftDoor != null) _leftDoor.localRotation = Quaternion.identity;
@@ -379,41 +379,52 @@ namespace PVZ.Delivery
             }
 
             // -------------------------------------------------------------
-            // PHASE 7: Spawn cargo boxes in accessible 2-column layout
+            // PHASE 7: Spawn sealed supply crates in accessible 2-column layout (5 products per crate)
             // -------------------------------------------------------------
-            int count = orderIds.Count;
-            int columns = Mathf.Min(count, 2);
+            int crateCount = Mathf.Max(1, (orderIds.Count + 4) / 5);
+            int columns = Mathf.Min(crateCount, 2);
 
-            for (int i = 0; i < count; i++)
+            for (int c = 0; c < crateCount; c++)
             {
-                int row = i / columns;
-                int col = i % columns;
+                int row = c / columns;
+                int col = c % columns;
 
                 float xPos = (col == 0) ? -0.55f : 0.55f;
-                float zPos = (row * 0.75f) - 0.4f;
+                float zPos = (row * 0.95f) - 0.4f;
                 float yPos = 0.35f;
 
                 Vector3 localSpawnPos = new Vector3(xPos, yPos, zPos);
                 Vector3 worldPos = _cargoBay != null ? _cargoBay.TransformPoint(localSpawnPos) : transform.position + localSpawnPos;
+                Quaternion spawnRot = _cargoBay != null ? _cargoBay.rotation : transform.rotation;
 
-                GameObject boxObj = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                boxObj.name = $"DeliveredBox_{orderIds[i]}";
-                boxObj.transform.position = worldPos;
-                boxObj.transform.localScale = new Vector3(0.55f, 0.55f, 0.55f);
-
-                if (_cargoBay != null)
+                // Gather 5 product IDs for this crate
+                var crateIds = new List<int>();
+                int startIdx = c * 5;
+                for (int j = 0; j < 5; j++)
                 {
-                    boxObj.transform.SetParent(_cargoBay);
+                    int idx = startIdx + j;
+                    if (idx < orderIds.Count)
+                    {
+                        crateIds.Add(orderIds[idx]);
+                    }
+                    else
+                    {
+                        crateIds.Add(orderIds.Count > 0 ? (orderIds[0] + idx) : (200 + idx));
+                    }
                 }
 
-                Rigidbody rb = boxObj.AddComponent<Rigidbody>();
-                rb.mass = 1.0f;
-                rb.collisionDetectionMode = CollisionDetectionMode.Continuous;
+                GameObject crateObj = new GameObject($"SupplyCrate_{c + 1}");
+                crateObj.transform.position = worldPos;
+                crateObj.transform.rotation = spawnRot;
+                if (_cargoBay != null)
+                {
+                    crateObj.transform.SetParent(_cargoBay);
+                }
 
-                BoxItem boxItem = boxObj.AddComponent<BoxItem>();
-                boxItem.Initialize(orderIds[i]);
+                SupplyBox supplyBox = crateObj.AddComponent<SupplyBox>();
+                supplyBox.Initialize(crateIds);
 
-                _cargoBoxes.Add(boxItem);
+                _cargoSupplyBoxes.Add(supplyBox);
             }
 
             _isArrived = true;

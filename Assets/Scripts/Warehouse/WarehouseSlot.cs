@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 using PVZ.Items;
 
@@ -17,10 +18,15 @@ namespace PVZ.Warehouse
         [Tooltip("Transform position where placed boxes snap to.")]
         [SerializeField] private Transform _snapPoint;
 
-        [Header("State")]
+        [Header("Capacity & Storage")]
+        [Tooltip("Maximum number of products that can be placed in this single warehouse slot.")]
+        public const int MaxCapacity = 5;
+
+        [SerializeField] private List<BoxItem> _storedProducts = new List<BoxItem>();
         [SerializeField] private BoxItem _currentBox;
         [SerializeField] private bool _isHighlighted;
         private float _highlightTimer;
+        private int _highlightTargetId = -1;
 
         /// <summary>
         /// Fires when a box is placed into or removed from this slot.
@@ -33,14 +39,29 @@ namespace PVZ.Warehouse
         public string SlotId => _slotId;
 
         /// <summary>
-        /// Gets the box currently stored in this slot, or null if empty.
+        /// Gets the front product currently stored in this slot, or null if empty.
         /// </summary>
-        public BoxItem CurrentBox => _currentBox;
+        public BoxItem CurrentBox => (_storedProducts.Count > 0) ? _storedProducts[0] : _currentBox;
 
         /// <summary>
-        /// True if no box is currently placed in this slot.
+        /// Gets the full read-only list of products stored inside this cell.
         /// </summary>
-        public bool IsEmpty => _currentBox == null;
+        public IReadOnlyList<BoxItem> StoredProducts => _storedProducts;
+
+        /// <summary>
+        /// Number of products currently held inside this warehouse cell (0 to 5).
+        /// </summary>
+        public int StoredCount => _storedProducts.Count;
+
+        /// <summary>
+        /// True if no product is currently placed in this slot.
+        /// </summary>
+        public bool IsEmpty => _storedProducts.Count == 0 && _currentBox == null;
+
+        /// <summary>
+        /// True if this slot reached its maximum capacity of 5 products.
+        /// </summary>
+        public bool IsFull => _storedProducts.Count >= MaxCapacity;
 
         /// <summary>
         /// True if slot is currently highlighted by the counter scanner.
@@ -58,6 +79,11 @@ namespace PVZ.Warehouse
             {
                 _snapPoint = transform;
             }
+
+            if (_currentBox != null && !_storedProducts.Contains(_currentBox))
+            {
+                _storedProducts.Add(_currentBox);
+            }
         }
 
         private void Start()
@@ -67,10 +93,12 @@ namespace PVZ.Warehouse
                 WarehouseManager.Instance.RegisterSlot(this);
             }
 
-            // Check if a box was already placed in this slot in the scene
-            if (_currentBox != null)
+            for (int i = 0; i < _storedProducts.Count; i++)
             {
-                _currentBox.SetSlot(_slotId);
+                if (_storedProducts[i] != null)
+                {
+                    _storedProducts[i].SetSlot(_slotId);
+                }
             }
         }
 
@@ -82,6 +110,7 @@ namespace PVZ.Warehouse
                 if (_highlightTimer <= 0f)
                 {
                     _isHighlighted = false;
+                    _highlightTargetId = -1;
                 }
             }
         }
@@ -107,68 +136,115 @@ namespace PVZ.Warehouse
         /// Highlights this warehouse slot with a visual on-screen marker for the specified duration.
         /// </summary>
         /// <param name="duration">Duration in seconds.</param>
-        public void Highlight(float duration = 8.0f)
+        /// <param name="targetOrderId">Optional specific order ID being sought.</param>
+        public void Highlight(float duration = 8.0f, int targetOrderId = -1)
         {
             _isHighlighted = true;
             _highlightTimer = duration;
+            _highlightTargetId = targetOrderId;
         }
 
         /// <summary>
-        /// Attempts to place a box into this slot.
+        /// Checks if this slot contains a product with the specified tracking order ID.
         /// </summary>
-        /// <param name="box">The box item to place.</param>
-        /// <returns>True if placed successfully, false if slot is already occupied.</returns>
+        public bool ContainsOrderId(int orderId)
+        {
+            return _storedProducts.Exists(p => p != null && p.OrderId == orderId);
+        }
+
+        /// <summary>
+        /// Attempts to place a product parcel into this slot (up to 5 items per slot).
+        /// </summary>
+        /// <param name="box">The product item to place.</param>
+        /// <returns>True if placed successfully, false if slot is full or item unscanned.</returns>
         public bool TryPlaceBox(BoxItem box)
         {
-            if (box == null || !IsEmpty)
+            if (box == null || IsFull)
             {
                 return false;
             }
 
             if (!box.IsIntakeScanned)
             {
-                Debug.LogWarning($"<color=yellow>[WarehouseSlot]</color> Нельзя положить заказ #{box.OrderId} в ячейку [{_slotId}]: посылка не принята сканером!");
+                Debug.LogWarning($"<color=yellow>[WarehouseSlot]</color> Нельзя положить товар #{box.OrderId} в ячейку [{_slotId}]: товар не принят сканером!");
                 return false;
             }
 
-            _currentBox = box;
-            _currentBox.SetSlot(_slotId);
-            _currentBox.PlaceAt(SnapPoint.position, SnapPoint.rotation);
+            _storedProducts.Add(box);
+            box.SetSlot(_slotId);
 
-            OnSlotOccupancyChanged?.Invoke(this, _currentBox);
+            int index = _storedProducts.Count - 1;
+            Vector3 localOffset = GetLocalOffsetForIndex(index);
+            box.PlaceAt(SnapPoint.TransformPoint(localOffset), SnapPoint.rotation);
+
+            _currentBox = CurrentBox;
+            OnSlotOccupancyChanged?.Invoke(this, box);
             return true;
         }
 
         /// <summary>
-        /// Clears the slot occupancy (e.g. when the player takes the box).
+        /// Calculates neat shelf placement offset for up to 5 items inside a 1.1m x 0.8m slot.
         /// </summary>
-        /// <returns>The removed box item.</returns>
-        public BoxItem RemoveBox()
+        public static Vector3 GetLocalOffsetForIndex(int index)
+        {
+            return index switch
+            {
+                0 => new Vector3(-0.30f, 0.12f, -0.15f),
+                1 => new Vector3( 0.00f, 0.12f, -0.15f),
+                2 => new Vector3( 0.30f, 0.12f, -0.15f),
+                3 => new Vector3(-0.16f, 0.12f,  0.18f),
+                4 => new Vector3( 0.16f, 0.12f,  0.18f),
+                _ => new Vector3( 0.00f, 0.12f,  0.00f)
+            };
+        }
+
+        /// <summary>
+        /// Removes a product from this slot (optionally targeting a specific order ID).
+        /// </summary>
+        /// <param name="targetOrderId">If specified >= 0, seeks that specific product.</param>
+        /// <returns>The removed product item or null if empty.</returns>
+        public BoxItem RemoveBox(int targetOrderId = -1)
         {
             if (IsEmpty)
             {
                 return null;
             }
 
-            BoxItem removed = _currentBox;
-            _currentBox = null;
+            BoxItem removed = null;
+            if (targetOrderId >= 0)
+            {
+                removed = _storedProducts.Find(p => p != null && p.OrderId == targetOrderId);
+            }
+
+            if (removed == null)
+            {
+                // Default to the last added product
+                removed = _storedProducts[_storedProducts.Count - 1];
+            }
+
+            _storedProducts.Remove(removed);
             removed.ClearSlot();
 
-            OnSlotOccupancyChanged?.Invoke(this, null);
+            _currentBox = CurrentBox;
+            OnSlotOccupancyChanged?.Invoke(this, CurrentBox);
             return removed;
         }
 
         /// <summary>
-        /// Forcefully clears and destroys any box inside this slot (used to ensure clean game start).
+        /// Forcefully clears and destroys all products inside this slot (used for clean restart).
         /// </summary>
         public void ClearSlot()
         {
-            if (_currentBox != null)
+            for (int i = _storedProducts.Count - 1; i >= 0; i--)
             {
-                Destroy(_currentBox.gameObject);
-                _currentBox = null;
-                OnSlotOccupancyChanged?.Invoke(this, null);
+                if (_storedProducts[i] != null)
+                {
+                    Destroy(_storedProducts[i].gameObject);
+                }
             }
+            _storedProducts.Clear();
+            _currentBox = null;
+            OnSlotOccupancyChanged?.Invoke(this, null);
         }
 
         private void OnGUI()
@@ -201,7 +277,8 @@ namespace PVZ.Warehouse
                 };
                 beaconStyle.normal.textColor = Color.yellow;
 
-                string text = $"🎯 ЯЧЕЙКА [{_slotId}] (Заказ #{(_currentBox != null ? _currentBox.OrderId : 0)})";
+                string targetStr = (_highlightTargetId > 0) ? $"Товар #{_highlightTargetId} | " : "";
+                string text = $"🎯 ЯЧЕЙКА [{_slotId}] ({targetStr}{StoredCount}/5 тов.)";
                 GUI.Box(new Rect(x - 120, y - 20, 240, 32), text, beaconStyle);
             }
         }

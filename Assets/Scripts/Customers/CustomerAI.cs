@@ -28,8 +28,17 @@ namespace PVZ.Customers
     public class CustomerAI : MonoBehaviour
     {
         [Header("Customer Properties")]
-        [Tooltip("The unique order number this customer is picking up.")]
+        [Tooltip("The unique order number this customer is picking up (front/first item).")]
         [SerializeField] private int _targetOrderId;
+
+        [Tooltip("The complete list of product order IDs this customer is requesting (1 to 4 items).")]
+        [SerializeField] private System.Collections.Generic.List<int> _requestedOrderIds = new System.Collections.Generic.List<int>();
+
+        [Tooltip("Product order IDs that still need to be delivered to this customer.")]
+        [SerializeField] private System.Collections.Generic.List<int> _remainingOrderIds = new System.Collections.Generic.List<int>();
+
+        [Tooltip("Product order IDs that have already been handed over.")]
+        [SerializeField] private System.Collections.Generic.List<int> _receivedOrderIds = new System.Collections.Generic.List<int>();
 
         [Tooltip("Walking speed towards queue or exit.")]
         [SerializeField] private float _walkSpeed = 2.4f;
@@ -50,9 +59,34 @@ namespace PVZ.Customers
         private Vector3 _exitPoint;
 
         /// <summary>
-        /// Gets the order ID this customer is requesting.
+        /// Gets the current or front order ID this customer is requesting.
         /// </summary>
-        public int TargetOrderId => _targetOrderId;
+        public int TargetOrderId => (_remainingOrderIds.Count > 0) ? _remainingOrderIds[0] : _targetOrderId;
+
+        /// <summary>
+        /// Read-only list of all order IDs originally requested by this customer.
+        /// </summary>
+        public System.Collections.Generic.IReadOnlyList<int> RequestedOrderIds => _requestedOrderIds;
+
+        /// <summary>
+        /// Read-only list of order IDs still awaiting delivery.
+        /// </summary>
+        public System.Collections.Generic.IReadOnlyList<int> RemainingOrderIds => _remainingOrderIds;
+
+        /// <summary>
+        /// Total number of product items requested in this customer order (1 to 4).
+        /// </summary>
+        public int TotalRequestedCount => (_requestedOrderIds.Count > 0) ? _requestedOrderIds.Count : 1;
+
+        /// <summary>
+        /// Number of products successfully handed over so far.
+        /// </summary>
+        public int ServedCount => _receivedOrderIds.Count;
+
+        /// <summary>
+        /// True once the customer has received all requested products.
+        /// </summary>
+        public bool IsFullyServed => _remainingOrderIds.Count == 0 && _requestedOrderIds.Count > 0;
 
         /// <summary>
         /// True once the customer has been scanned with the barcode scanner.
@@ -190,16 +224,29 @@ namespace PVZ.Customers
         }
 
         /// <summary>
-        /// Initializes the customer with their target order ID and exit destination.
+        /// Initializes the customer with a list of requested product IDs (1 to 4 products) and exit destination.
         /// </summary>
-        public void Initialize(int orderId, Vector3 exitPoint)
+        public void Initialize(System.Collections.Generic.List<int> orderIds, Vector3 exitPoint)
         {
-            _targetOrderId = orderId;
+            _requestedOrderIds = (orderIds != null && orderIds.Count > 0)
+                ? new System.Collections.Generic.List<int>(orderIds)
+                : new System.Collections.Generic.List<int> { 101 };
+            _remainingOrderIds = new System.Collections.Generic.List<int>(_requestedOrderIds);
+            _receivedOrderIds = new System.Collections.Generic.List<int>();
+            _targetOrderId = _requestedOrderIds[0];
             _exitPoint = exitPoint;
             _isScanned = false;
             _elapsedTimeAfterScan = 0f;
             _state = CustomerState.Spawning;
             BuildArmAndPhone();
+        }
+
+        /// <summary>
+        /// Backward-compatible initialization for single-order callers.
+        /// </summary>
+        public void Initialize(int orderId, Vector3 exitPoint)
+        {
+            Initialize(new System.Collections.Generic.List<int> { orderId }, exitPoint);
         }
 
         /// <summary>
@@ -217,7 +264,8 @@ namespace PVZ.Customers
         }
 
         /// <summary>
-        /// Scans the customer's barcode at the counter. Reveals the order ID and starts the timer.
+        /// Scans the customer's barcode at the counter. Reveals the requested products and starts the timer.
+        /// Highlights warehouse shelf slots containing the requested products.
         /// </summary>
         public void ScanOrder()
         {
@@ -233,7 +281,13 @@ namespace PVZ.Customers
             {
                 _phoneScreenRenderer.material.color = Color.green;
             }
-            ShowSpeech($"Код принят! Заказ #{_targetOrderId}", isAngry: false, duration: 3.0f);
+
+            // Highlight all warehouse shelf slots containing remaining items
+            Warehouse.WarehouseManager.Instance?.HighlightSlotsForOrders(_remainingOrderIds, 15.0f);
+
+            string idsStr = string.Join(", #", _requestedOrderIds);
+            string countStr = _requestedOrderIds.Count > 1 ? $" ({_requestedOrderIds.Count} тов.)" : "";
+            ShowSpeech($"Код принят! Заказ{countStr}: #{idsStr}", isAngry: false, duration: 3.5f);
         }
 
         private void Update()
@@ -320,16 +374,19 @@ namespace PVZ.Customers
         }
 
         /// <summary>
-        /// Attempts to hand over a parcel box to this customer.
+        /// Attempts to hand over a product parcel to this customer.
+        /// Handles multi-item orders (1 to 4 items): partial deliveries keep the customer at the counter
+        /// until all items are delivered. Once completed, calculates economy payment, rating, and departs.
         /// </summary>
-        public bool TryReceiveOrder(BoxItem box, out int ratingDelta, out float paymentAwarded, out string feedbackMessage)
+        public bool TryReceiveOrder(BoxItem box, out int ratingDelta, out float paymentAwarded, out string feedbackMessage, out bool isOrderComplete)
         {
             ratingDelta = 0;
             paymentAwarded = 0f;
+            isOrderComplete = false;
 
             if (box == null)
             {
-                feedbackMessage = "Вы не держите посылку в руках!";
+                feedbackMessage = "Вы не держите товар в руках!";
                 return false;
             }
 
@@ -346,12 +403,36 @@ namespace PVZ.Customers
                 return false;
             }
 
-            if (box.OrderId != _targetOrderId)
+            // Check if the presented box matches any remaining requested order ID
+            if (!_remainingOrderIds.Contains(box.OrderId))
             {
-                feedbackMessage = $"❌ Клиент отказывается: «Это не мой заказ! Я жду #{_targetOrderId}, а у вас #{box.OrderId}!»";
-                ShowSpeech($"Это не моя посылка! Мне нужен заказ #{_targetOrderId}!", isAngry: true, duration: 3.5f);
+                string neededIds = string.Join(", #", _remainingOrderIds);
+                feedbackMessage = $"❌ Клиент отказывается: «Это не мой товар! Мне нужны: #{neededIds}, а у вас #{box.OrderId}!»";
+                ShowSpeech($"Это не мой товар! Мне нужны: #{neededIds}!", isAngry: true, duration: 3.5f);
                 return false;
             }
+
+            // Hand over accepted item
+            int deliveredId = box.OrderId;
+            _remainingOrderIds.Remove(deliveredId);
+            _receivedOrderIds.Add(deliveredId);
+            Destroy(box.gameObject);
+
+            // Check if more items remain for this customer
+            if (_remainingOrderIds.Count > 0)
+            {
+                isOrderComplete = false;
+                string remainingStr = string.Join(", #", _remainingOrderIds);
+                feedbackMessage = $"✔ Товар #{deliveredId} принят! ({_receivedOrderIds.Count}/{TotalRequestedCount} выдано). Осталось выдать: #{remainingStr}.";
+                ShowSpeech($"Товар #{deliveredId} получен! Жду еще {_remainingOrderIds.Count} тов. (#{remainingStr})", isAngry: false, duration: 3.0f);
+
+                // Highlight remaining items in warehouse
+                Warehouse.WarehouseManager.Instance?.HighlightSlotsForOrders(_remainingOrderIds, 15.0f);
+                return true;
+            }
+
+            // --- FULL ORDER COMPLETE ---
+            isOrderComplete = true;
 
             // Calculate rating delta and customer review stars (1 - 5★):
             // 0 - 15s: 5★ (+1 очко рейтинга)
@@ -393,10 +474,10 @@ namespace PVZ.Customers
             }
 
             // Economy calculation per user specification:
-            // Base reward: 1 ruble per parcel.
+            // Base reward: 1 ruble per parcel/product.
             // Speed bonus (+1 rep): x1.1 multiplier.
             // PVZ star rating multiplier (active only after 50 orders): 5★ = 1.2x, 4★ = 1.0x, 3★ = 1.0x, 2★ = 0.9x, 1★ = 0.8x.
-            float baseReward = 1.0f;
+            float baseReward = 1.0f * TotalRequestedCount;
             float speedMultiplier = (ratingDelta > 0) ? 1.1f : 1.0f;
             float ratingMultiplier = (RatingManager.Instance != null) ? RatingManager.Instance.CurrentMoneyMultiplier : 1.0f;
 
@@ -410,13 +491,14 @@ namespace PVZ.Customers
 
             if (RatingManager.Instance != null)
             {
-                RatingManager.Instance.RecordOrder(orderStars, ratingDelta, $"Клиент #{_targetOrderId} обслужен за {TimeFormatter.FormatMinutesSeconds(_elapsedTimeAfterScan)}");
+                string orderDesc = $"Клиент ({TotalRequestedCount} тов.) обслужен за {TimeFormatter.FormatMinutesSeconds(_elapsedTimeAfterScan)}";
+                RatingManager.Instance.RecordOrder(orderStars, ratingDelta, orderDesc);
             }
 
             // Customer reaction speech
             string speech = ratingDelta > 0
-                ? "Спасибо огромное за быструю выдачу!"
-                : (ratingDelta == 0 ? "Спасибо, заказ получен." : "Наконец-то дождался свой заказ...");
+                ? "Спасибо огромное за быструю выдачу всех товаров!"
+                : (ratingDelta == 0 ? "Спасибо, все товары получены." : "Наконец-то получил все позиции...");
 
             ShowSpeech(speech, isAngry: ratingDelta < 0, duration: 3.5f);
 
@@ -437,16 +519,21 @@ namespace PVZ.Customers
                 ? $" [x{speedMultiplier:0.#} скорость{(RatingManager.Instance != null && RatingManager.Instance.HasRating ? $", x{ratingMultiplier:0.#} рейтинг" : string.Empty)}]"
                 : string.Empty;
 
-            feedbackMessage = $"✔ Заказ #{_targetOrderId} успешно выдан! Оплата: +{EconomyManager.FormatMoney(paymentAwarded)}{bonusDetails}.{ratingProgress} {speedLabel}";
-
-            // Destroy the box item GameObject as it is handed over
-            Destroy(box.gameObject);
+            feedbackMessage = $"✔ Заказ успешно выдан ({TotalRequestedCount} тов.)! Оплата: +{EconomyManager.FormatMoney(paymentAwarded)}{bonusDetails}.{ratingProgress} {speedLabel}";
 
             // Depart towards entrance
             _state = CustomerState.SatisfiedExit;
             OnCustomerDeparted?.Invoke(this, true);
 
             return true;
+        }
+
+        /// <summary>
+        /// Backward-compatible overload for 4-parameter callers.
+        /// </summary>
+        public bool TryReceiveOrder(BoxItem box, out int ratingDelta, out float paymentAwarded, out string feedbackMessage)
+        {
+            return TryReceiveOrder(box, out ratingDelta, out paymentAwarded, out feedbackMessage, out _);
         }
 
         /// <summary>
@@ -487,11 +574,13 @@ namespace PVZ.Customers
 
             if (_isScanned)
             {
-                // Scanned: show order ID and live timer in minutes & seconds
+                // Scanned: show order progress and live timer in minutes & seconds
                 tagStyle.normal.textColor = Color.yellow;
                 string timerText = TimeFormatter.FormatMinutesSeconds(_elapsedTimeAfterScan);
-                string tagText = $"Заказ #{_targetOrderId} ({timerText})";
-                GUI.Box(new Rect(screenPos.x - 90, y - 40, 180, 24), tagText, tagStyle);
+                string tagText = (TotalRequestedCount > 1)
+                    ? $"Заказ: {_receivedOrderIds.Count}/{TotalRequestedCount} тов. ({timerText})"
+                    : $"Заказ #{_targetOrderId} ({timerText})";
+                GUI.Box(new Rect(screenPos.x - 110, y - 40, 220, 24), tagText, tagStyle);
 
                 // Speed rating indicator below tag
                 GUIStyle speedStyle = new GUIStyle

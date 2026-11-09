@@ -242,8 +242,9 @@ namespace PVZ.Delivery
 
             _currentCountdown = _deliveryDuration;
             _isDeliveryPending = true;
+            int crateCount = Mathf.Max(1, (boxCount + 4) / 5);
             ShowNotification(
-                $"🚛 Поставка оформлена! Фура с {boxCount} коробками прибудет через {TimeFormatter.FormatMinutesSeconds(_deliveryDuration)}. КД поставщика: {TimeFormatter.FormatMinutesSeconds(_deliveryCooldownDuration)}.",
+                $"🚛 Поставка оформлена! Фура с {crateCount} ящ. ({boxCount} тов.) прибудет через {TimeFormatter.FormatMinutesSeconds(_deliveryDuration)}. КД поставщика: {TimeFormatter.FormatMinutesSeconds(_deliveryCooldownDuration)}.",
                 6f);
         }
 

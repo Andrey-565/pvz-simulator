@@ -168,13 +168,13 @@ namespace PVZ.Customers
             // Only spawn customers if line has room AND there is an unclaimed parcel in warehouse slots
             if (_activeQueue.Count < _maxQueueSize)
             {
-                if (TryPickAvailableOrderId(out int nextOrderId))
+                if (TryPickAvailableOrderBatch(out List<int> nextBatch))
                 {
                     _outOfStockNotified = false;
                     _spawnCountdown -= Time.deltaTime;
                     if (_spawnCountdown <= 0f)
                     {
-                        SpawnCustomerWithOrder(nextOrderId);
+                        SpawnCustomerWithOrderBatch(nextBatch);
                         _spawnCountdown = GetRandomSpawnInterval();
                     }
                 }
@@ -228,12 +228,18 @@ namespace PVZ.Customers
         }
 
         /// <summary>
-        /// Spawns a customer seeking a specific available parcel.
+        /// Spawns a customer seeking a specific batch of available parcels (1 to 4 products).
         /// </summary>
-        private void SpawnCustomerWithOrder(int targetOrderId)
+        public void SpawnCustomerWithOrderBatch(List<int> productIds)
         {
+            if (productIds == null || productIds.Count == 0)
+            {
+                return;
+            }
+
+            string batchIdStr = string.Join("_", productIds);
             GameObject customerObj = GameObject.CreatePrimitive(PrimitiveType.Capsule);
-            customerObj.name = $"Customer_Order_{targetOrderId}";
+            customerObj.name = $"Customer_Batch_{batchIdStr}";
             customerObj.transform.position = _spawnPosition;
             customerObj.transform.rotation = Quaternion.Euler(0f, 0f, 0f); // Facing North towards building entrance
             customerObj.transform.localScale = new Vector3(0.85f, 0.95f, 0.85f);
@@ -273,7 +279,7 @@ namespace PVZ.Customers
 
             // Logic
             CustomerAI customer = customerObj.AddComponent<CustomerAI>();
-            customer.Initialize(targetOrderId, _exitPosition);
+            customer.Initialize(productIds, _exitPosition);
             customer.OnCustomerDeparted += HandleCustomerDeparted;
 
             // Place in Queue
@@ -288,13 +294,20 @@ namespace PVZ.Customers
         }
 
         /// <summary>
-        /// Selects an order ID from an unserved parcel currently placed in a warehouse shelf slot.
-        /// Returns false if no warehouse shelf slot contains an unclaimed parcel.
-        /// Boxes still in the delivery truck or on the floor will NOT trigger customer arrivals until placed on shelves.
+        /// Backward-compatible single-order spawn.
         /// </summary>
-        public bool TryPickAvailableOrderId(out int targetOrderId)
+        public void SpawnCustomerWithOrder(int targetOrderId)
         {
-            targetOrderId = -1;
+            SpawnCustomerWithOrderBatch(new List<int> { targetOrderId });
+        }
+
+        /// <summary>
+        /// Collects between 1 and 4 random available and unclaimed product order IDs from warehouse shelves.
+        /// When warehouse shelves are empty, returns false.
+        /// </summary>
+        public bool TryPickAvailableOrderBatch(out List<int> productIds)
+        {
+            productIds = new List<int>();
             if (WarehouseManager.Instance == null)
             {
                 return false;
@@ -305,26 +318,49 @@ namespace PVZ.Customers
             {
                 if (_activeQueue[i] != null)
                 {
-                    claimedOrderIds.Add(_activeQueue[i].TargetOrderId);
-                }
-            }
-
-            // Strictly check occupied warehouse shelf slots:
-            var occupiedSlots = WarehouseManager.Instance.GetOccupiedSlots();
-            for (int i = 0; i < occupiedSlots.Count; i++)
-            {
-                var slot = occupiedSlots[i];
-                if (slot != null && slot.CurrentBox != null)
-                {
-                    int orderId = slot.CurrentBox.OrderId;
-                    if (!claimedOrderIds.Contains(orderId))
+                    foreach (int id in _activeQueue[i].RemainingOrderIds)
                     {
-                        targetOrderId = orderId;
-                        return true;
+                        claimedOrderIds.Add(id);
                     }
                 }
             }
 
+            var availableIds = WarehouseManager.Instance.GetAllAvailableOrderIds()
+                .Where(id => !claimedOrderIds.Contains(id))
+                .ToList();
+
+            if (availableIds.Count == 0)
+            {
+                return false;
+            }
+
+            // Shuffle available IDs for random customer choice
+            for (int i = 0; i < availableIds.Count; i++)
+            {
+                int r = UnityEngine.Random.Range(i, availableIds.Count);
+                int temp = availableIds[i];
+                availableIds[i] = availableIds[r];
+                availableIds[r] = temp;
+            }
+
+            // Customer requests between 1 and 4 products (or as many as currently available on shelves)
+            int batchSize = Mathf.Clamp(UnityEngine.Random.Range(1, 5), 1, availableIds.Count);
+            productIds = availableIds.Take(batchSize).ToList();
+            return productIds.Count > 0;
+        }
+
+        /// <summary>
+        /// Selects an order ID from an unserved parcel currently placed in a warehouse shelf slot.
+        /// Backward-compatible single-order picker.
+        /// </summary>
+        public bool TryPickAvailableOrderId(out int targetOrderId)
+        {
+            if (TryPickAvailableOrderBatch(out var batch) && batch.Count > 0)
+            {
+                targetOrderId = batch[0];
+                return true;
+            }
+            targetOrderId = -1;
             return false;
         }
 
