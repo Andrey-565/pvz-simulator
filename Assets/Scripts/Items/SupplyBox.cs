@@ -227,7 +227,7 @@ namespace PVZ.Items
             }
 
             string idsStr = string.Join(", #", _productIds);
-            feedback = $"📦 Распаковано 5 товаров (#{idsStr})! Отсканируйте их сканером и разложите по ячейкам стеллажей.";
+            feedback = $"📦 Коробка открыта! Достали 5 товаров (#{idsStr}). Отсканируйте их сканером и разложите по ячейкам стеллажей.";
 
             // Destroy the empty shipping box
             Destroy(gameObject);

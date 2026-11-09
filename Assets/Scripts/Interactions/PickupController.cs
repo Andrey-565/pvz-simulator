@@ -213,7 +213,7 @@ namespace PVZ.Interactions
                     }
                     else if (targetSupplyBox != null && !targetSupplyBox.IsCarried)
                     {
-                        newPrompt = "[E / ЛКМ] Отсканировать и распаковать ящик (5 товаров)";
+                        newPrompt = "[F] Открыть коробку (5 товаров)";
                     }
                     else if (targetBox != null && !targetBox.IsCarried)
                     {
@@ -246,7 +246,7 @@ namespace PVZ.Interactions
                 // --- 2. PROMPTS WHEN HOLDING A SUPPLY CRATE ---
                 else if (IsCarryingSupplyBox)
                 {
-                    newPrompt = "[E] Поставить ящик на пол | [F] Распаковать ящик (5 товаров)";
+                    newPrompt = "[F] Открыть коробку (5 товаров) | [E] Поставить на пол";
                 }
                 // --- 3. PROMPTS WHEN HOLDING AN INDIVIDUAL PRODUCT PARCEL ---
                 else if (IsCarryingProduct)
@@ -299,7 +299,7 @@ namespace PVZ.Interactions
                 {
                     if (targetSupplyBox != null && !targetSupplyBox.IsCarried)
                     {
-                        newPrompt = "[E] Взять ящик поставки | [F] Распаковать ящик (5 товаров)";
+                        newPrompt = "[F] Открыть коробку (5 товаров) | [E] Взять коробку в руки";
                     }
                     else if (targetScanner != null && !targetScanner.IsCarried)
                     {
@@ -388,22 +388,22 @@ namespace PVZ.Interactions
             bool isLMBPressed = Input.GetMouseButtonDown(0);
             bool isRMBPressed = Input.GetMouseButtonDown(1);
 
-            // 1. Unpacking supply crate via [F] key
+            // 1. Opening supply box via [F] key
             if (isFPressed)
             {
                 if (IsCarryingSupplyBox)
                 {
-                    SupplyBox boxToUnpack = _currentSupplyBox;
+                    SupplyBox boxToOpen = _currentSupplyBox;
                     _currentSupplyBox = null;
-                    boxToUnpack.Unpack(out string fb);
+                    boxToOpen.Unpack(out string fb);
                     ShowBanner(fb, 4.0f);
                     return;
                 }
-                else if (HasFreeHands && _hoveredSupplyBox != null && !_hoveredSupplyBox.IsCarried)
+                else if (_hoveredSupplyBox != null && !_hoveredSupplyBox.IsCarried)
                 {
-                    SupplyBox boxToUnpack = _hoveredSupplyBox;
+                    SupplyBox boxToOpen = _hoveredSupplyBox;
                     _hoveredSupplyBox = null;
-                    boxToUnpack.Unpack(out string fb);
+                    boxToOpen.Unpack(out string fb);
                     ShowBanner(fb, 4.0f);
                     return;
                 }
@@ -605,7 +605,7 @@ namespace PVZ.Interactions
             _currentSupplyBox = supplyBox;
             _currentSupplyBox.PickUp(_holdPoint != null ? _holdPoint : _playerCamera.transform);
             _hoveredSupplyBox = null;
-            ShowBanner("📦 Ящик поставки взят в руки! Нажмите [F] чтобы распаковать 5 товаров.", 3.5f);
+            ShowBanner("📦 Коробка в руках! Нажмите [F], чтобы открыть её и достать 5 товаров.", 3.5f);
         }
 
         /// <summary>

@@ -337,8 +337,7 @@ namespace PVZ.Items
             SupplyBox supplyBox = hit.collider.GetComponentInParent<SupplyBox>();
             if (supplyBox != null)
             {
-                supplyBox.Unpack(out string unpackFb);
-                feedback = $"✔ [Пик!] {unpackFb}";
+                feedback = "📦 Коробка поставки. Нажмите клавишу [F], чтобы открыть её и достать 5 товаров!";
                 return true;
             }
 
