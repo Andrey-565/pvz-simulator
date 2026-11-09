@@ -16,6 +16,16 @@ namespace PVZ.Player
         [Tooltip("Downward gravitational acceleration.")]
         [SerializeField] private float _gravity = -9.81f;
 
+        [Header("Crouch Settings")]
+        [Tooltip("Height of the player CharacterController when crouched.")]
+        [SerializeField] private float _crouchHeight = 1.0f;
+
+        [Tooltip("Movement speed while crouching.")]
+        [SerializeField] private float _crouchSpeed = 2.4f;
+
+        [Tooltip("Speed of transition between standing and crouching.")]
+        [SerializeField] private float _crouchTransitionSpeed = 10.0f;
+
         [Header("Look Settings")]
         [Tooltip("First-person camera transform.")]
         [SerializeField] private Transform _cameraTransform;
@@ -34,6 +44,12 @@ namespace PVZ.Player
         private float _cameraPitch;
         private bool _isMovementLocked;
 
+        private float _standingHeight;
+        private Vector3 _standingCenter;
+        private float _standingCameraY;
+        private float _crouchCameraY;
+        private bool _isCrouching;
+
         /// <summary>
         /// Global singleton accessor.
         /// </summary>
@@ -44,6 +60,11 @@ namespace PVZ.Player
         /// </summary>
         public bool IsMovementLocked => _isMovementLocked;
 
+        /// <summary>
+        /// True if the player is currently crouching.
+        /// </summary>
+        public bool IsCrouching => _isCrouching;
+
         private void Awake()
         {
             Instance = this;
@@ -52,6 +73,24 @@ namespace PVZ.Player
             if (_cameraTransform == null && Camera.main != null)
             {
                 _cameraTransform = Camera.main.transform;
+            }
+
+            if (_characterController != null)
+            {
+                _standingHeight = _characterController.height;
+                _standingCenter = _characterController.center;
+            }
+            else
+            {
+                _standingHeight = 1.9f;
+                _standingCenter = Vector3.zero;
+            }
+
+            if (_cameraTransform != null)
+            {
+                _standingCameraY = _cameraTransform.localPosition.y;
+                float heightDiff = _standingHeight - _crouchHeight;
+                _crouchCameraY = _standingCameraY - (heightDiff * 0.85f);
             }
         }
 
@@ -87,7 +126,58 @@ namespace PVZ.Player
             }
 
             HandleLook();
+            HandleCrouch();
             HandleMovement();
+        }
+
+        /// <summary>
+        /// Handles crouching on Ctrl (holding LeftControl/RightControl/C), smoothly lowering CharacterController height and camera Y.
+        /// </summary>
+        private void HandleCrouch()
+        {
+            if (_characterController == null)
+            {
+                return;
+            }
+
+            bool wantsToCrouch = Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl) || Input.GetKey(KeyCode.C);
+
+            // If player releases Ctrl, verify there is enough overhead clearance to stand up
+            if (!wantsToCrouch && _isCrouching)
+            {
+                float clearanceNeeded = _standingHeight - _characterController.height;
+                if (clearanceNeeded > 0.05f)
+                {
+                    Vector3 origin = transform.position + _characterController.center + (Vector3.up * (_characterController.height * 0.35f));
+                    if (Physics.SphereCast(origin, _characterController.radius * 0.8f, Vector3.up, out _, clearanceNeeded, ~0, QueryTriggerInteraction.Ignore))
+                    {
+                        // Something is blocking overhead (shelf, counter, etc.) - keep crouching!
+                        wantsToCrouch = true;
+                    }
+                }
+            }
+
+            _isCrouching = wantsToCrouch;
+
+            // Interpolate character controller height
+            float targetHeight = _isCrouching ? _crouchHeight : _standingHeight;
+            float newHeight = Mathf.MoveTowards(_characterController.height, targetHeight, _crouchTransitionSpeed * Time.deltaTime);
+            _characterController.height = newHeight;
+
+            // Adjust center so player's feet stay pinned to the floor
+            float bottom = _standingCenter.y - (_standingHeight * 0.5f);
+            Vector3 center = _characterController.center;
+            center.y = bottom + (newHeight * 0.5f);
+            _characterController.center = center;
+
+            // Smoothly interpolate Camera Y position
+            if (_cameraTransform != null)
+            {
+                float targetCamY = _isCrouching ? _crouchCameraY : _standingCameraY;
+                Vector3 camPos = _cameraTransform.localPosition;
+                camPos.y = Mathf.MoveTowards(camPos.y, targetCamY, _crouchTransitionSpeed * Time.deltaTime);
+                _cameraTransform.localPosition = camPos;
+            }
         }
 
         /// <summary>
@@ -129,7 +219,8 @@ namespace PVZ.Player
                 _verticalVelocity += _gravity * Time.deltaTime;
             }
 
-            Vector3 velocity = (moveDirection * _moveSpeed) + (Vector3.up * _verticalVelocity);
+            float currentSpeed = _isCrouching ? _crouchSpeed : _moveSpeed;
+            Vector3 velocity = (moveDirection * currentSpeed) + (Vector3.up * _verticalVelocity);
             _characterController.Move(velocity * Time.deltaTime);
         }
 
