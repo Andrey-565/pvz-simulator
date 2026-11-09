@@ -34,6 +34,26 @@ namespace PVZ.Economy
         public float CurrentRating => Mathf.Clamp((float)Math.Round(_currentStarRating, 1), 0.5f, 5.0f);
 
         /// <summary>
+        /// Returns the revenue multiplier based on the store's current star rating:
+        /// 5 stars: 1.2x, 4 stars: 1.0x, 3 stars: 1.0x, 2 stars: 0.9x, 1 star: 0.8x.
+        /// </summary>
+        public float CurrentMoneyMultiplier
+        {
+            get
+            {
+                int stars = Mathf.RoundToInt(CurrentRating);
+                return stars switch
+                {
+                    >= 5 => 1.2f,
+                    4 => 1.0f,
+                    3 => 1.0f,
+                    2 => 0.9f,
+                    _ => 0.8f // 1 star or below
+                };
+            }
+        }
+
+        /// <summary>
         /// Gets cumulative rating points.
         /// </summary>
         public int RatingPoints => _ratingPoints;
@@ -134,7 +154,8 @@ namespace PVZ.Economy
             }
 
             string pointSign = _ratingPoints >= 0 ? $"+{_ratingPoints}" : $"{_ratingPoints}";
-            return $"{starStr} {stars:F1} (Очки: {pointSign})";
+            string multStr = $" | x{CurrentMoneyMultiplier:0.#} ₽";
+            return $"{starStr} {stars:F1} (Очки: {pointSign}{multStr})";
         }
     }
 }

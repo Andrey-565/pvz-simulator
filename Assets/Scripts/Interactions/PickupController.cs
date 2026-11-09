@@ -311,7 +311,7 @@ namespace PVZ.Interactions
                     if (targetCust != null && targetCust.IsAtCounter)
                     {
                         BoxItem boxToDeliver = _currentBox;
-                        if (targetCust.TryReceiveOrder(boxToDeliver, out int ratingDelta, out int payment, out string msg))
+                        if (targetCust.TryReceiveOrder(boxToDeliver, out int ratingDelta, out float payment, out string msg))
                         {
                             _currentBox = null;
                             return;

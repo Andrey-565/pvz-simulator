@@ -17,6 +17,10 @@ namespace PVZ.Warehouse
         [Header("Runtime Registry")]
         [SerializeField] private List<WarehouseSlot> _registeredSlots = new List<WarehouseSlot>();
 
+        [Header("Initialization")]
+        [Tooltip("Guarantees the game starts with 0 boxes on shelves by clearing any scene-saved starter boxes.")]
+        [SerializeField] private bool _startWithZeroBoxes = true;
+
         /// <summary>
         /// Global singleton accessor.
         /// </summary>
@@ -42,6 +46,28 @@ namespace PVZ.Warehouse
             foreach (var slot in sceneSlots)
             {
                 RegisterSlot(slot);
+            }
+
+            if (_startWithZeroBoxes)
+            {
+                ClearAllStarterBoxes();
+            }
+        }
+
+        private void ClearAllStarterBoxes()
+        {
+            foreach (var slot in _registeredSlots)
+            {
+                slot.ClearSlot();
+            }
+
+            var looseBoxes = FindObjectsByType<BoxItem>(FindObjectsSortMode.None);
+            foreach (var box in looseBoxes)
+            {
+                if (box != null && (box.transform.parent == null || !box.transform.parent.name.Contains("Truck")))
+                {
+                    Destroy(box.gameObject);
+                }
             }
         }
 

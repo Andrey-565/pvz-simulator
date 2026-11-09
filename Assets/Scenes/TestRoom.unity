@@ -879,7 +879,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PVZ.Warehouse.WarehouseSlot
   _slotId: A1
   _snapPoint: {fileID: 165623256}
-  _currentBox: {fileID: 1416028931}
+  _currentBox: {fileID: 0}
   _isHighlighted: 0
 --- !u!4 &179538940
 Transform:
@@ -1302,7 +1302,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PVZ.Warehouse.WarehouseSlot
   _slotId: B1
   _snapPoint: {fileID: 1671294363}
-  _currentBox: {fileID: 425965211}
+  _currentBox: {fileID: 0}
   _isHighlighted: 0
 --- !u!4 &307689904
 Transform:
@@ -3512,7 +3512,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 224a5840904e5ea41853618ffd87bcd7, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PVZ.Economy.EconomyManager
-  _startingBalance: 500
+  _startingBalance: 0
   _currentBalance: 0
 --- !u!1 &974965124
 GameObject:
@@ -4139,7 +4139,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PVZ.Warehouse.WarehouseSlot
   _slotId: A2
   _snapPoint: {fileID: 274233808}
-  _currentBox: {fileID: 1117579723}
+  _currentBox: {fileID: 0}
   _isHighlighted: 0
 --- !u!4 &1149304148
 Transform:

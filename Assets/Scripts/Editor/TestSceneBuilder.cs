@@ -227,27 +227,8 @@ namespace PVZ.Editor
             sPickup.FindProperty("_holdPoint").objectReferenceValue = holdPoint.transform;
             sPickup.ApplyModifiedProperties();
 
-            // 11. Initial Starter Boxes on Warehouse Shelves
-            BoxItem box101 = CreateBox("Box_Order_101", 101, Vector3.zero);
-            WarehouseSlot slotA1 = GameObject.Find("Slot_A1")?.GetComponent<WarehouseSlot>();
-            if (slotA1 != null)
-            {
-                slotA1.TryPlaceBox(box101);
-            }
-
-            BoxItem box102 = CreateBox("Box_Order_102", 102, Vector3.zero);
-            WarehouseSlot slotA2 = GameObject.Find("Slot_A2")?.GetComponent<WarehouseSlot>();
-            if (slotA2 != null)
-            {
-                slotA2.TryPlaceBox(box102);
-            }
-
-            BoxItem box103 = CreateBox("Box_Order_103", 103, Vector3.zero);
-            WarehouseSlot slotB1 = GameObject.Find("Slot_B1")?.GetComponent<WarehouseSlot>();
-            if (slotB1 != null)
-            {
-                slotB1.TryPlaceBox(box103);
-            }
+            // 11. Initial Starter Boxes (Disabled per economy design: starts with 0 boxes on shelves)
+            // Player must order their first free delivery from the computer terminal.
 
             // Save Scene
             EditorSceneManager.SaveScene(newScene, ScenePath);

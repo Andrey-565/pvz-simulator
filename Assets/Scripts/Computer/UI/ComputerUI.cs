@@ -74,11 +74,11 @@ namespace PVZ.Computer.UI
 
         private void DrawWindowContent(int windowId)
         {
-            int balance = EconomyManager.Instance != null ? EconomyManager.Instance.CurrentBalance : 0;
+            float balance = EconomyManager.Instance != null ? EconomyManager.Instance.CurrentBalance : 0f;
 
             // Top Bar
             GUILayout.BeginHorizontal();
-            GUILayout.Label($"<b>Сотрудник:</b> Оператор ПВЗ | <b>Баланс кассы:</b> <color=green>{balance:N0} ₽</color>", GUILayout.Height(25));
+            GUILayout.Label($"<b>Сотрудник:</b> Оператор ПВЗ | <b>Баланс кассы:</b> <color=green>{EconomyManager.FormatMoney(balance)}</color>", GUILayout.Height(25));
             GUILayout.FlexibleSpace();
             if (GUILayout.Button("✕ Закрыть [Esc]", GUILayout.Width(110), GUILayout.Height(25)))
             {
@@ -127,7 +127,7 @@ namespace PVZ.Computer.UI
             }
         }
 
-        private void DrawMarketTab(int balance)
+        private void DrawMarketTab(float balance)
         {
             // Delivery Status Card inside PC UI
             if (DeliveryManager.Instance != null)

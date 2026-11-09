@@ -143,7 +143,7 @@ namespace PVZ.Counter
             }
 
             CustomerAI customer = CustomerQueueManager.Instance.FirstInQueue;
-            bool success = customer.TryReceiveOrder(box, out int ratingDelta, out int payment, out feedback);
+            bool success = customer.TryReceiveOrder(box, out int ratingDelta, out float payment, out feedback);
             return success;
         }
 

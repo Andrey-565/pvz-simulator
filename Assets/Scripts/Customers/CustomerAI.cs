@@ -217,10 +217,10 @@ namespace PVZ.Customers
         /// <summary>
         /// Attempts to hand over a parcel box to this customer.
         /// </summary>
-        public bool TryReceiveOrder(BoxItem box, out int ratingDelta, out int paymentAwarded, out string feedbackMessage)
+        public bool TryReceiveOrder(BoxItem box, out int ratingDelta, out float paymentAwarded, out string feedbackMessage)
         {
             ratingDelta = 0;
-            paymentAwarded = 0;
+            paymentAwarded = 0f;
 
             if (box == null)
             {
@@ -281,7 +281,15 @@ namespace PVZ.Customers
                 speedLabel = "Критическое опоздание (-5 очков рейтинга)";
             }
 
-            paymentAwarded = 150 + (ratingDelta > 0 ? 50 : 0);
+            // Economy calculation per user specification:
+            // Base reward: 1 ruble per parcel.
+            // Speed bonus (+1 rep): x1.1 multiplier.
+            // PVZ star rating multiplier: 5★ = 1.2x, 4★ = 1.0x, 3★ = 1.0x, 2★ = 0.9x, 1★ = 0.8x.
+            float baseReward = 1.0f;
+            float speedMultiplier = (ratingDelta > 0) ? 1.1f : 1.0f;
+            float ratingMultiplier = (RatingManager.Instance != null) ? RatingManager.Instance.CurrentMoneyMultiplier : 1.0f;
+
+            paymentAwarded = (float)Math.Round(baseReward * speedMultiplier * ratingMultiplier, 2);
 
             // Apply economy & rating updates
             if (EconomyManager.Instance != null)
@@ -301,7 +309,11 @@ namespace PVZ.Customers
 
             ShowSpeech(speech, isAngry: ratingDelta < 0, duration: 3.5f);
 
-            feedbackMessage = $"✔ Заказ #{_targetOrderId} успешно выдан! Оплата: +{paymentAwarded} ₽. {speedLabel}";
+            string bonusDetails = (ratingDelta > 0 || ratingMultiplier != 1.0f)
+                ? $" [x{speedMultiplier:0.#} скорость, x{ratingMultiplier:0.#} рейтинг]"
+                : string.Empty;
+
+            feedbackMessage = $"✔ Заказ #{_targetOrderId} успешно выдан! Оплата: +{EconomyManager.FormatMoney(paymentAwarded)}{bonusDetails}. {speedLabel}";
 
             // Destroy the box item GameObject as it is handed over
             Destroy(box.gameObject);

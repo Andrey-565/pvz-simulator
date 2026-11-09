@@ -152,6 +152,19 @@ namespace PVZ.Warehouse
             return removed;
         }
 
+        /// <summary>
+        /// Forcefully clears and destroys any box inside this slot (used to ensure clean game start).
+        /// </summary>
+        public void ClearSlot()
+        {
+            if (_currentBox != null)
+            {
+                Destroy(_currentBox.gameObject);
+                _currentBox = null;
+                OnSlotOccupancyChanged?.Invoke(this, null);
+            }
+        }
+
         private void OnGUI()
         {
             if (!_isHighlighted)

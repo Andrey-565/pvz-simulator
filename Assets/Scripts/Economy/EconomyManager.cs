@@ -12,10 +12,10 @@ namespace PVZ.Economy
 
         [Header("Starting Economy")]
         [Tooltip("Initial cash funds available to the player in rubles.")]
-        [SerializeField] private int _startingBalance = 1000;
+        [SerializeField] private float _startingBalance = 0f;
 
         [Header("Runtime Balance")]
-        [SerializeField] private int _currentBalance;
+        [SerializeField] private float _currentBalance;
 
         /// <summary>
         /// Currency symbol for Russian rubles.
@@ -30,20 +30,20 @@ namespace PVZ.Economy
         /// <summary>
         /// Gets the current cash balance in rubles.
         /// </summary>
-        public int CurrentBalance => _currentBalance;
+        public float CurrentBalance => _currentBalance;
 
         /// <summary>
-        /// Formats an amount into rubles format (e.g. "1 500 ₽").
+        /// Formats an amount into rubles format (e.g. "1.32 ₽" or "0.00 ₽").
         /// </summary>
-        public static string FormatMoney(int amount)
+        public static string FormatMoney(float amount)
         {
-            return $"{amount:N0} ₽";
+            return $"{amount:F2} ₽";
         }
 
         /// <summary>
         /// Fires when the account balance changes, passing the new amount.
         /// </summary>
-        public event Action<int> OnBalanceChanged;
+        public event Action<float> OnBalanceChanged;
 
         private void Awake()
         {
@@ -68,9 +68,9 @@ namespace PVZ.Economy
         /// <summary>
         /// Checks if player has at least the required funds.
         /// </summary>
-        public bool CanAfford(int amount)
+        public bool CanAfford(float amount)
         {
-            return _currentBalance >= amount;
+            return _currentBalance >= amount - 0.001f;
         }
 
         /// <summary>
@@ -78,9 +78,9 @@ namespace PVZ.Economy
         /// </summary>
         /// <param name="amount">Amount to spend.</param>
         /// <returns>True if deduction succeeded, false if not enough cash.</returns>
-        public bool TrySpend(int amount)
+        public bool TrySpend(float amount)
         {
-            if (amount <= 0)
+            if (amount <= 0f)
             {
                 return true;
             }
@@ -90,7 +90,8 @@ namespace PVZ.Economy
                 return false;
             }
 
-            _currentBalance -= amount;
+            _currentBalance = Mathf.Max(0f, _currentBalance - amount);
+            _currentBalance = (float)Math.Round(_currentBalance, 2);
             OnBalanceChanged?.Invoke(_currentBalance);
             return true;
         }
@@ -99,14 +100,15 @@ namespace PVZ.Economy
         /// Adds earned money to the account balance.
         /// </summary>
         /// <param name="amount">Earnings to credit.</param>
-        public void AddMoney(int amount)
+        public void AddMoney(float amount)
         {
-            if (amount <= 0)
+            if (amount <= 0f)
             {
                 return;
             }
 
             _currentBalance += amount;
+            _currentBalance = (float)Math.Round(_currentBalance, 2);
             OnBalanceChanged?.Invoke(_currentBalance);
         }
     }
